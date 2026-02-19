@@ -1,15 +1,19 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { Cross, MagnifyingGlass, Users, UserPlus } from "@phosphor-icons/react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { getMembers, subscribe } from "@/lib/member-store";
 
 export default function HomePage() {
   const [query, setQuery] = useState("");
   const router = useRouter();
+  const members = useSyncExternalStore(subscribe, getMembers, getMembers);
+
+  const activeCount = members.filter((m) => m.isActive).length;
 
   const handleSearch = useCallback(() => {
     if (query.trim()) {
@@ -77,8 +81,21 @@ export default function HomePage() {
         </div>
       </div>
 
+      {/* 통계 */}
+      <div className="mt-12 flex items-center gap-8 text-center">
+        <div>
+          <p className="text-2xl font-bold text-primary">{members.length}</p>
+          <p className="text-xs text-muted-foreground">전체 교인</p>
+        </div>
+        <div className="h-8 w-px bg-border" />
+        <div>
+          <p className="text-2xl font-bold text-primary">{activeCount}</p>
+          <p className="text-xs text-muted-foreground">활동 교인</p>
+        </div>
+      </div>
+
       {/* 하단 바로가기 */}
-      <div className="mt-16 flex gap-6 text-sm text-muted-foreground">
+      <div className="mt-10 flex gap-6 text-sm text-muted-foreground">
         <Link
           href="/members"
           className="flex items-center gap-1.5 hover:text-primary transition-colors"

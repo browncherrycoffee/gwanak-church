@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { FloppyDisk, ArrowLeft } from "@phosphor-icons/react";
 import { POSITIONS, DEPARTMENTS, BAPTISM_TYPES, GENDERS, RELATIONSHIPS } from "@/lib/constants";
+import { formatPhoneNumber } from "@/lib/utils";
 import type { Member, MemberFormData } from "@/types";
 
 interface MemberFormProps {
@@ -69,8 +70,9 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
                 <label className="text-sm font-medium mb-1.5 block">연락처</label>
                 <Input
                   value={form.phone}
-                  onChange={(e) => handleChange("phone", e.target.value)}
+                  onChange={(e) => handleChange("phone", formatPhoneNumber(e.target.value))}
                   placeholder="010-0000-0000"
+                  maxLength={13}
                 />
               </div>
               <div>

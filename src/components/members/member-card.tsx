@@ -30,6 +30,11 @@ export function MemberCard({ member }: MemberCardProps) {
                       {member.position}
                     </Badge>
                   )}
+                  {!member.isActive && (
+                    <Badge variant="outline" className="text-xs text-muted-foreground">
+                      비활동
+                    </Badge>
+                  )}
                 </div>
                 {member.department && (
                   <p className="mt-0.5 text-xs text-muted-foreground">
@@ -39,11 +44,6 @@ export function MemberCard({ member }: MemberCardProps) {
                 )}
               </div>
             </div>
-            {!member.isActive && (
-              <Badge variant="outline" className="text-xs text-muted-foreground">
-                비활동
-              </Badge>
-            )}
           </div>
 
           <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">

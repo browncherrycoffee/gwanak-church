@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useState, useMemo, useSyncExternalStore } from "react";
 import Link from "next/link";
 import {
   MagnifyingGlass,
   Cross,
   UserPlus,
   FunnelSimple,
+  SortAscending,
 } from "@phosphor-icons/react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -15,25 +16,73 @@ import { MemberCard } from "@/components/members/member-card";
 import { searchMembers } from "@/lib/search";
 import { getMembers, subscribe } from "@/lib/member-store";
 import { POSITIONS, DEPARTMENTS } from "@/lib/constants";
+import type { Member } from "@/types";
+
+type SortKey = "name" | "position" | "registrationDate" | "department";
+
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: "name", label: "이름순" },
+  { value: "position", label: "직분순" },
+  { value: "department", label: "소속순" },
+  { value: "registrationDate", label: "등록일순" },
+];
+
+const POSITION_ORDER = [
+  "담임목사", "부목사", "전도사", "장로", "권사", "안수집사", "집사", "성도", "청년", "학생",
+];
+
+function sortMembers(members: Member[], key: SortKey): Member[] {
+  return [...members].sort((a, b) => {
+    switch (key) {
+      case "name":
+        return (a.name).localeCompare(b.name, "ko");
+      case "position": {
+        const aIdx = POSITION_ORDER.indexOf(a.position ?? "");
+        const bIdx = POSITION_ORDER.indexOf(b.position ?? "");
+        const aOrder = aIdx === -1 ? 999 : aIdx;
+        const bOrder = bIdx === -1 ? 999 : bIdx;
+        return aOrder - bOrder;
+      }
+      case "department":
+        return (a.department ?? "").localeCompare(b.department ?? "", "ko");
+      case "registrationDate":
+        return (a.registrationDate ?? "").localeCompare(b.registrationDate ?? "");
+      default:
+        return 0;
+    }
+  });
+}
 
 export default function MembersListPage() {
   const [query, setQuery] = useState("");
   const [positionFilter, setPositionFilter] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("");
+  const [activeFilter, setActiveFilter] = useState<"" | "active" | "inactive">("");
+  const [sortKey, setSortKey] = useState<SortKey>("name");
   const [showFilters, setShowFilters] = useState(false);
 
   const members = useSyncExternalStore(subscribe, getMembers, getMembers);
 
-  let filtered = query ? searchMembers(members, query) : members;
+  const filtered = useMemo(() => {
+    let result = query ? searchMembers(members, query) : members;
 
-  if (positionFilter) {
-    filtered = filtered.filter((m) => m.position === positionFilter);
-  }
-  if (departmentFilter) {
-    filtered = filtered.filter((m) => m.department === departmentFilter);
-  }
+    if (positionFilter) {
+      result = result.filter((m) => m.position === positionFilter);
+    }
+    if (departmentFilter) {
+      result = result.filter((m) => m.department === departmentFilter);
+    }
+    if (activeFilter === "active") {
+      result = result.filter((m) => m.isActive);
+    } else if (activeFilter === "inactive") {
+      result = result.filter((m) => !m.isActive);
+    }
+
+    return query ? result : sortMembers(result, sortKey);
+  }, [members, query, positionFilter, departmentFilter, activeFilter, sortKey]);
 
   const activeCount = members.filter((m) => m.isActive).length;
+  const hasFilters = positionFilter || departmentFilter || activeFilter;
 
   return (
     <div className="min-h-screen">
@@ -60,10 +109,15 @@ export default function MembersListPage() {
             variant="ghost"
             size="sm"
             onClick={() => setShowFilters(!showFilters)}
-            className={showFilters ? "text-primary" : ""}
+            className={showFilters || hasFilters ? "text-primary" : ""}
           >
             <FunnelSimple weight="light" className="mr-1.5 h-4 w-4" />
             필터
+            {hasFilters && (
+              <span className="ml-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-white">
+                {[positionFilter, departmentFilter, activeFilter].filter(Boolean).length}
+              </span>
+            )}
           </Button>
           <Button asChild size="sm" className="shrink-0">
             <Link href="/members/new">
@@ -97,13 +151,23 @@ export default function MembersListPage() {
                   <option key={d} value={d}>{d}</option>
                 ))}
               </select>
-              {(positionFilter || departmentFilter) && (
+              <select
+                className="rounded-md border bg-background px-3 py-1.5 text-sm"
+                value={activeFilter}
+                onChange={(e) => setActiveFilter(e.target.value as "" | "active" | "inactive")}
+              >
+                <option value="">전체 상태</option>
+                <option value="active">활동</option>
+                <option value="inactive">비활동</option>
+              </select>
+              {hasFilters && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => {
                     setPositionFilter("");
                     setDepartmentFilter("");
+                    setActiveFilter("");
                   }}
                 >
                   필터 초기화
@@ -126,9 +190,23 @@ export default function MembersListPage() {
               </span>
             )}
           </div>
-          <span className="text-xs text-muted-foreground">
-            활동 {activeCount}명
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">
+              활동 {activeCount}명
+            </span>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <SortAscending weight="light" className="h-3.5 w-3.5" />
+              <select
+                className="border-none bg-transparent text-xs text-muted-foreground focus:outline-none cursor-pointer"
+                value={sortKey}
+                onChange={(e) => setSortKey(e.target.value as SortKey)}
+              >
+                {SORT_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
 
         {filtered.length === 0 ? (

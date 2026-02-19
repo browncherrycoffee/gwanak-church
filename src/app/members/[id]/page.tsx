@@ -16,11 +16,13 @@ import {
   Tag,
   UsersThree,
   Note,
+  ToggleLeft,
+  ToggleRight,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getMember, deleteMember, getMembers, subscribe } from "@/lib/member-store";
+import { getMember, deleteMember, toggleMemberActive, getMembers, subscribe } from "@/lib/member-store";
 import { formatDate } from "@/lib/utils";
 
 export default function MemberDetailPage({
@@ -57,10 +59,10 @@ export default function MemberDetailPage({
   };
 
   const infoRows = [
-    { icon: Phone, label: "연락처", value: member.phone },
-    { icon: MapPin, label: "주소", value: [member.address, member.detailAddress].filter(Boolean).join(" ") },
-    { icon: CalendarBlank, label: "생년월일", value: member.birthDate ? formatDate(member.birthDate) : null },
-    { icon: User, label: "성별", value: member.gender },
+    { icon: Phone, label: "연락처", value: member.phone, isPhone: true },
+    { icon: MapPin, label: "주소", value: [member.address, member.detailAddress].filter(Boolean).join(" "), isPhone: false },
+    { icon: CalendarBlank, label: "생년월일", value: member.birthDate ? formatDate(member.birthDate) : null, isPhone: false },
+    { icon: User, label: "성별", value: member.gender, isPhone: false },
   ];
 
   const churchRows = [
@@ -111,27 +113,42 @@ export default function MemberDetailPage({
 
       <main className="mx-auto max-w-4xl px-4 py-6">
         {/* 프로필 헤더 */}
-        <div className="mb-6 flex items-center gap-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-secondary text-primary">
-            <User weight="light" className="h-8 w-8" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold">{member.name}</h1>
-              {member.position && (
-                <Badge className="bg-primary">{member.position}</Badge>
-              )}
-              {!member.isActive && (
-                <Badge variant="outline">비활동</Badge>
+        <div className="mb-6 flex items-start justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-secondary text-primary">
+              <User weight="light" className="h-8 w-8" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-bold">{member.name}</h1>
+                {member.position && (
+                  <Badge className="bg-primary">{member.position}</Badge>
+                )}
+                {!member.isActive && (
+                  <Badge variant="outline">비활동</Badge>
+                )}
+              </div>
+              {member.department && (
+                <p className="mt-1 text-muted-foreground">
+                  {member.department}
+                  {member.district ? ` / ${member.district}` : ""}
+                </p>
               )}
             </div>
-            {member.department && (
-              <p className="mt-1 text-muted-foreground">
-                {member.department}
-                {member.district ? ` / ${member.district}` : ""}
-              </p>
-            )}
           </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => toggleMemberActive(id)}
+            className={member.isActive ? "text-primary" : "text-muted-foreground"}
+          >
+            {member.isActive ? (
+              <ToggleRight weight="fill" className="mr-1.5 h-5 w-5" />
+            ) : (
+              <ToggleLeft weight="light" className="mr-1.5 h-5 w-5" />
+            )}
+            {member.isActive ? "활동" : "비활동"}
+          </Button>
         </div>
 
         <div className="space-y-6">
@@ -145,7 +162,16 @@ export default function MemberDetailPage({
                     <row.icon weight="light" className="mt-0.5 h-4 w-4 text-muted-foreground shrink-0" />
                     <div>
                       <p className="text-xs text-muted-foreground">{row.label}</p>
-                      <p className="text-sm">{row.value}</p>
+                      {row.isPhone ? (
+                        <a
+                          href={`tel:${row.value}`}
+                          className="text-sm text-primary hover:underline"
+                        >
+                          {row.value}
+                        </a>
+                      ) : (
+                        <p className="text-sm">{row.value}</p>
+                      )}
                     </div>
                   </div>
                 ))}

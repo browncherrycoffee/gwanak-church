@@ -50,6 +50,22 @@ export function updateMember(id: string, data: Partial<MemberFormData>): Member 
   return updated;
 }
 
+export function toggleMemberActive(id: string): Member | null {
+  const index = members.findIndex((m) => m.id === id);
+  if (index === -1) return null;
+  const existing = members[index];
+  if (!existing) return null;
+
+  const updated: Member = {
+    ...existing,
+    isActive: !existing.isActive,
+    updatedAt: new Date().toISOString(),
+  };
+  members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
+  notify();
+  return updated;
+}
+
 export function deleteMember(id: string): boolean {
   const before = members.length;
   members = members.filter((m) => m.id !== id);
