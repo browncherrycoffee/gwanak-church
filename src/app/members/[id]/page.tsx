@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useSyncExternalStore } from "react";
+import { use, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -23,6 +23,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { getMember, deleteMember, toggleMemberActive, getMembers, subscribe } from "@/lib/member-store";
 import { formatDate } from "@/lib/utils";
 
@@ -33,6 +34,8 @@ export default function MemberDetailPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
+
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // subscribe to store changes
   useSyncExternalStore(subscribe, getMembers, getMembers);
@@ -53,10 +56,8 @@ export default function MemberDetailPage({
   }
 
   const handleDelete = () => {
-    if (window.confirm(`${member.name} 교인의 교적을 삭제하시겠습니까?`)) {
-      deleteMember(id);
-      router.push("/members");
-    }
+    deleteMember(id);
+    router.push("/members");
   };
 
   const infoRows = [
@@ -108,7 +109,7 @@ export default function MemberDetailPage({
                 <span className="hidden sm:inline">수정</span>
               </Link>
             </Button>
-            <Button variant="outline" size="sm" onClick={handleDelete} className="text-destructive hover:text-destructive">
+            <Button variant="outline" size="sm" onClick={() => setShowDeleteDialog(true)} className="text-destructive hover:text-destructive">
               <Trash weight="light" className="h-4 w-4 sm:mr-1.5" />
               <span className="hidden sm:inline">삭제</span>
             </Button>
@@ -286,6 +287,17 @@ export default function MemberDetailPage({
           )}
         </div>
       </main>
+
+      <ConfirmDialog
+        open={showDeleteDialog}
+        title="교적 삭제"
+        description={`${member.name} 교인의 교적을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`}
+        confirmLabel="삭제"
+        cancelLabel="취소"
+        destructive
+        onConfirm={handleDelete}
+        onCancel={() => setShowDeleteDialog(false)}
+      />
     </div>
   );
 }
