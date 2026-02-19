@@ -1,0 +1,16 @@
+{
+  "name": "관악교회 교적부",
+  "short_name": "관악교적부",
+  "description": "관악교회 교적부 관리 시스템",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1b4332",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ]
+}

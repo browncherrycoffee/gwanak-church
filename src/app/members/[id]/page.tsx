@@ -60,11 +60,12 @@ export default function MemberDetailPage({
     router.push("/members");
   };
 
+  const fullAddress = [member.address, member.detailAddress].filter(Boolean).join(" ");
   const infoRows = [
-    { icon: Phone, label: "연락처", value: member.phone, isPhone: true },
-    { icon: MapPin, label: "주소", value: [member.address, member.detailAddress].filter(Boolean).join(" "), isPhone: false },
-    { icon: CalendarBlank, label: "생년월일", value: member.birthDate ? formatDate(member.birthDate) : null, isPhone: false },
-    { icon: User, label: "성별", value: member.gender, isPhone: false },
+    { icon: Phone, label: "연락처", value: member.phone, linkType: "phone" as const },
+    { icon: MapPin, label: "주소", value: fullAddress || null, linkType: "address" as const },
+    { icon: CalendarBlank, label: "생년월일", value: member.birthDate ? formatDate(member.birthDate) : null, linkType: "none" as const },
+    { icon: User, label: "성별", value: member.gender, linkType: "none" as const },
   ];
 
   const churchRows = [
@@ -168,9 +169,18 @@ export default function MemberDetailPage({
                     <row.icon weight="light" className="mt-0.5 h-4 w-4 text-muted-foreground shrink-0" />
                     <div>
                       <p className="text-xs text-muted-foreground">{row.label}</p>
-                      {row.isPhone ? (
+                      {row.linkType === "phone" ? (
                         <a
                           href={`tel:${row.value}`}
+                          className="text-sm text-primary hover:underline"
+                        >
+                          {row.value}
+                        </a>
+                      ) : row.linkType === "address" ? (
+                        <a
+                          href={`https://map.naver.com/v5/search/${encodeURIComponent(row.value)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="text-sm text-primary hover:underline"
                         >
                           {row.value}
