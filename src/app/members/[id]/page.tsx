@@ -203,24 +203,54 @@ export default function MemberDetailPage({
           </Card>
 
           {/* 가족 정보 */}
-          {(member.familyHead || member.relationship) && (
-            <Card>
-              <CardContent className="p-5">
-                <h2 className="text-sm font-semibold text-muted-foreground mb-4">가족 정보</h2>
-                <div className="space-y-3">
-                  {familyRows.map((row) => row.value && (
-                    <div key={row.label} className="flex items-start gap-3">
-                      <row.icon weight="light" className="mt-0.5 h-4 w-4 text-muted-foreground shrink-0" />
-                      <div>
-                        <p className="text-xs text-muted-foreground">{row.label}</p>
-                        <p className="text-sm">{row.value}</p>
+          {(member.familyHead || member.relationship) && (() => {
+            const familyMembers = member.familyHead
+              ? getMembers().filter((m) => m.familyHead === member.familyHead && m.id !== member.id)
+              : [];
+            return (
+              <Card>
+                <CardContent className="p-5">
+                  <h2 className="text-sm font-semibold text-muted-foreground mb-4">가족 정보</h2>
+                  <div className="space-y-3">
+                    {familyRows.map((row) => row.value && (
+                      <div key={row.label} className="flex items-start gap-3">
+                        <row.icon weight="light" className="mt-0.5 h-4 w-4 text-muted-foreground shrink-0" />
+                        <div>
+                          <p className="text-xs text-muted-foreground">{row.label}</p>
+                          <p className="text-sm">{row.value}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {familyMembers.length > 0 && (
+                    <div className="mt-4 pt-4 border-t">
+                      <p className="text-xs text-muted-foreground mb-2">같은 세대 교인</p>
+                      <div className="space-y-2">
+                        {familyMembers.map((fm) => (
+                          <Link
+                            key={fm.id}
+                            href={`/members/${fm.id}`}
+                            className="flex items-center gap-2 rounded-md p-2 -mx-2 hover:bg-secondary transition-colors"
+                          >
+                            <User weight="light" className="h-4 w-4 text-primary shrink-0" />
+                            <span className="text-sm font-medium">{fm.name}</span>
+                            {fm.relationship && (
+                              <span className="text-xs text-muted-foreground">({fm.relationship})</span>
+                            )}
+                            {fm.position && (
+                              <Badge variant="secondary" className="text-[10px] ml-auto">
+                                {fm.position}
+                              </Badge>
+                            )}
+                          </Link>
+                        ))}
                       </div>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })()}
 
           {/* 세례 정보 */}
           {(member.baptismType || member.baptismDate) && (

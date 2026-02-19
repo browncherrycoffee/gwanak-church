@@ -3,10 +3,36 @@
 import type { Member, MemberFormData } from "@/types";
 import { sampleMembers } from "./sample-data";
 
-let members: Member[] = [...sampleMembers];
+const STORAGE_KEY = "gwanak-members";
+
+function loadFromStorage(): Member[] {
+  if (typeof window === "undefined") return [...sampleMembers];
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored) as Member[];
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {
+    // ignore parse errors
+  }
+  return [...sampleMembers];
+}
+
+function saveToStorage(data: Member[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch {
+    // ignore storage errors (quota exceeded, etc.)
+  }
+}
+
+let members: Member[] = loadFromStorage();
 let listeners: Array<() => void> = [];
 
 function notify() {
+  saveToStorage(members);
   for (const listener of listeners) {
     listener();
   }

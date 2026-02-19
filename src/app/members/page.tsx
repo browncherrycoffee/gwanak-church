@@ -8,11 +8,13 @@ import {
   UserPlus,
   FunnelSimple,
   SortAscending,
+  DownloadSimple,
 } from "@phosphor-icons/react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MemberCard } from "@/components/members/member-card";
+import { exportMembersCsv } from "@/lib/export";
 import { searchMembers } from "@/lib/search";
 import { getMembers, subscribe } from "@/lib/member-store";
 import { POSITIONS, DEPARTMENTS } from "@/lib/constants";
@@ -118,6 +120,14 @@ export default function MembersListPage() {
                 {[positionFilter, departmentFilter, activeFilter].filter(Boolean).length}
               </span>
             )}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => exportMembersCsv(filtered)}
+            title="CSV 내보내기"
+          >
+            <DownloadSimple weight="light" className="h-4 w-4" />
           </Button>
           <Button asChild size="sm" className="shrink-0">
             <Link href="/members/new">
