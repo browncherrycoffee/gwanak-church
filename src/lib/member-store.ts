@@ -4,10 +4,18 @@ import type { Member, MemberFormData } from "@/types";
 import { sampleMembers } from "./sample-data";
 
 const STORAGE_KEY = "gwanak-members";
+const VERSION_KEY = "gwanak-data-version";
+const DATA_VERSION = 2;
 
 function loadFromStorage(): Member[] {
   if (typeof window === "undefined") return [...sampleMembers];
   try {
+    const storedVersion = localStorage.getItem(VERSION_KEY);
+    if (storedVersion !== String(DATA_VERSION)) {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.setItem(VERSION_KEY, String(DATA_VERSION));
+      return [...sampleMembers];
+    }
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored) as Member[];
@@ -16,6 +24,11 @@ function loadFromStorage(): Member[] {
   } catch {
     // ignore parse errors
   }
+  try {
+    localStorage.setItem(VERSION_KEY, String(DATA_VERSION));
+  } catch {
+    // ignore
+  }
   return [...sampleMembers];
 }
 
@@ -23,6 +36,7 @@ function saveToStorage(data: Member[]) {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    localStorage.setItem(VERSION_KEY, String(DATA_VERSION));
   } catch {
     // ignore storage errors (quota exceeded, etc.)
   }
