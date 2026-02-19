@@ -102,6 +102,11 @@ export function deleteMember(id: string): boolean {
   return false;
 }
 
+export function resetMembers(): void {
+  members = [...sampleMembers];
+  notify();
+}
+
 export function subscribe(listener: () => void) {
   listeners = [...listeners, listener];
   return () => {

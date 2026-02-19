@@ -113,8 +113,8 @@ export default function MembersListPage() {
             onClick={() => setShowFilters(!showFilters)}
             className={showFilters || hasFilters ? "text-primary" : ""}
           >
-            <FunnelSimple weight="light" className="mr-1.5 h-4 w-4" />
-            필터
+            <FunnelSimple weight="light" className="h-4 w-4 sm:mr-1.5" />
+            <span className="hidden sm:inline">필터</span>
             {hasFilters && (
               <span className="ml-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-white">
                 {[positionFilter, departmentFilter, activeFilter].filter(Boolean).length}
@@ -131,8 +131,8 @@ export default function MembersListPage() {
           </Button>
           <Button asChild size="sm" className="shrink-0">
             <Link href="/members/new">
-              <UserPlus weight="light" className="mr-1.5 h-4 w-4" />
-              등록
+              <UserPlus weight="light" className="h-4 w-4 sm:mr-1.5" />
+              <span className="hidden sm:inline">등록</span>
             </Link>
           </Button>
         </div>

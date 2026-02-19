@@ -97,20 +97,20 @@ export default function MemberDetailPage({
               </Link>
             </Button>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-1.5 sm:gap-2">
             <Button variant="outline" size="sm" onClick={() => window.print()} className="no-print">
-              <Printer weight="light" className="mr-1.5 h-4 w-4" />
-              인쇄
+              <Printer weight="light" className="h-4 w-4 sm:mr-1.5" />
+              <span className="hidden sm:inline">인쇄</span>
             </Button>
             <Button asChild variant="outline" size="sm">
               <Link href={`/members/${id}/edit`}>
-                <PencilSimple weight="light" className="mr-1.5 h-4 w-4" />
-                수정
+                <PencilSimple weight="light" className="h-4 w-4 sm:mr-1.5" />
+                <span className="hidden sm:inline">수정</span>
               </Link>
             </Button>
             <Button variant="outline" size="sm" onClick={handleDelete} className="text-destructive hover:text-destructive">
-              <Trash weight="light" className="mr-1.5 h-4 w-4" />
-              삭제
+              <Trash weight="light" className="h-4 w-4 sm:mr-1.5" />
+              <span className="hidden sm:inline">삭제</span>
             </Button>
           </div>
         </div>
