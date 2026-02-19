@@ -30,7 +30,7 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
 ];
 
 const POSITION_ORDER = [
-  "담임목사", "부목사", "전도사", "장로", "권사", "안수집사", "집사", "성도", "청년", "학생",
+  "담임목사", "교수목사", "강도사", "전도사", "장로", "집사", "성도", "청년", "학생",
 ];
 
 function sortMembers(members: Member[], key: SortKey): Member[] {

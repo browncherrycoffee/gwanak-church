@@ -30,6 +30,11 @@ export function MemberCard({ member }: MemberCardProps) {
                       {member.position}
                     </Badge>
                   )}
+                  {member.notes && (
+                    <Badge variant="outline" className="text-xs text-primary border-primary/30">
+                      {member.notes}
+                    </Badge>
+                  )}
                   {!member.isActive && (
                     <Badge variant="outline" className="text-xs text-muted-foreground">
                       비활동

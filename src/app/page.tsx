@@ -173,6 +173,13 @@ export default function HomePage() {
           <p className="text-2xl font-bold text-primary">{activeCount}</p>
           <p className="text-xs text-muted-foreground">활동 교인</p>
         </div>
+        <div className="h-8 w-px bg-border" />
+        <div>
+          <p className="text-2xl font-bold text-primary">
+            {new Set(members.map((m) => m.department).filter(Boolean)).size}
+          </p>
+          <p className="text-xs text-muted-foreground">부서</p>
+        </div>
       </div>
 
       {/* 하단 바로가기 */}
