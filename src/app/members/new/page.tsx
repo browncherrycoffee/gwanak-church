@@ -12,8 +12,8 @@ export default function NewMemberPage() {
   const router = useRouter();
 
   const handleSubmit = (data: MemberFormData) => {
-    addMember(data);
-    router.push("/members");
+    const newMember = addMember(data);
+    router.push(`/members/${newMember.id}`);
   };
 
   return (

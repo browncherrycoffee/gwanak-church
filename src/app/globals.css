@@ -54,3 +54,22 @@
     overflow-wrap: break-word;
   }
 }
+
+/* 인쇄 시 헤더/버튼 숨기기 */
+@media print {
+  header,
+  button,
+  a[href^="/members/"][href$="/edit"],
+  .no-print {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+    max-width: none !important;
+  }
+
+  body {
+    font-size: 12pt;
+  }
+}

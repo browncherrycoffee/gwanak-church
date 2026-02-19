@@ -8,9 +8,11 @@ import {
   Cross,
   UserPlus,
   Users,
+  ArrowLeft,
 } from "@phosphor-icons/react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { MemberCard } from "@/components/members/member-card";
 import { searchMembers } from "@/lib/search";
 import { getMembers, subscribe } from "@/lib/member-store";
@@ -36,6 +38,10 @@ function SearchContent() {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") handleSearch();
+    if (e.key === "Escape") {
+      setQuery("");
+      router.push("/");
+    }
   };
 
   return (
@@ -70,10 +76,17 @@ function SearchContent() {
       {/* 결과 */}
       <main className="mx-auto max-w-5xl px-4 py-6">
         <div className="mb-4 flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            &quot;{initialQuery}&quot; 검색 결과{" "}
-            <span className="font-semibold text-foreground">{results.length}명</span>
-          </p>
+          <div className="flex items-center gap-2">
+            <Button asChild variant="ghost" size="sm" className="mr-1">
+              <Link href="/">
+                <ArrowLeft weight="light" className="h-4 w-4" />
+              </Link>
+            </Button>
+            <p className="text-sm text-muted-foreground">
+              &quot;{initialQuery}&quot; 검색 결과
+            </p>
+            <Badge variant="secondary">{results.length}명</Badge>
+          </div>
           <div className="flex gap-2">
             <Button asChild variant="ghost" size="sm">
               <Link href="/members">
@@ -97,12 +110,20 @@ function SearchContent() {
             <p className="mt-1 text-sm text-muted-foreground">
               다른 검색어로 시도하거나 오타를 확인해 주세요
             </p>
-            <Button asChild variant="outline" className="mt-6">
-              <Link href="/members/new">
-                <UserPlus weight="light" className="mr-2 h-4 w-4" />
-                새 교인 등록
-              </Link>
-            </Button>
+            <div className="mt-6 flex justify-center gap-3">
+              <Button asChild variant="outline">
+                <Link href="/">
+                  <ArrowLeft weight="light" className="mr-2 h-4 w-4" />
+                  홈으로
+                </Link>
+              </Button>
+              <Button asChild>
+                <Link href="/members/new">
+                  <UserPlus weight="light" className="mr-2 h-4 w-4" />
+                  새 교인 등록
+                </Link>
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="space-y-3">

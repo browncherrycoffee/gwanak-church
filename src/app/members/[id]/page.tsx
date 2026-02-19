@@ -18,6 +18,7 @@ import {
   Note,
   ToggleLeft,
   ToggleRight,
+  Printer,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -97,6 +98,10 @@ export default function MemberDetailPage({
             </Button>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => window.print()} className="no-print">
+              <Printer weight="light" className="mr-1.5 h-4 w-4" />
+              인쇄
+            </Button>
             <Button asChild variant="outline" size="sm">
               <Link href={`/members/${id}/edit`}>
                 <PencilSimple weight="light" className="mr-1.5 h-4 w-4" />
