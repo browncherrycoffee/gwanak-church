@@ -33,7 +33,7 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
     relationship: initialData?.relationship ?? "",
     baptismDate: initialData?.baptismDate ?? "",
     baptismType: initialData?.baptismType ?? "",
-    registrationDate: initialData?.registrationDate ?? "",
+    registrationDate: initialData?.registrationDate ?? (initialData ? "" : new Date().toISOString().slice(0, 10)),
     notes: initialData?.notes ?? "",
   });
 

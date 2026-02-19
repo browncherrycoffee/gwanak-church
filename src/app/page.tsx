@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Cross, MagnifyingGlass, Users, UserPlus, User } from "@phosphor-icons/react";
+import { Cross, MagnifyingGlass, Users, UserPlus, User, UploadSimple } from "@phosphor-icons/react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getMembers, subscribe } from "@/lib/member-store";
@@ -190,6 +190,13 @@ export default function HomePage() {
         >
           <UserPlus weight="light" className="h-4 w-4" />
           교인 등록
+        </Link>
+        <Link
+          href="/members/import"
+          className="flex items-center gap-1.5 hover:text-primary transition-colors"
+        >
+          <UploadSimple weight="light" className="h-4 w-4" />
+          일괄 가져오기
         </Link>
       </div>
     </div>
