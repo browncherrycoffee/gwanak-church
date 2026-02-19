@@ -7,16 +7,10 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: SITE_CONFIG.name,
+    default: `${SITE_CONFIG.name} 교적부`,
     template: `%s | ${SITE_CONFIG.name}`,
   },
   description: SITE_CONFIG.description,
-  openGraph: {
-    title: SITE_CONFIG.name,
-    description: SITE_CONFIG.description,
-    locale: "ko_KR",
-    type: "website",
-  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

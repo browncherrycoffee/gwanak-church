@@ -1,0 +1,67 @@
+"use client";
+
+import Link from "next/link";
+import { User, Phone, MapPin } from "@phosphor-icons/react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import type { Member } from "@/types";
+
+interface MemberCardProps {
+  member: Member;
+}
+
+export function MemberCard({ member }: MemberCardProps) {
+  return (
+    <Link href={`/members/${member.id}`}>
+      <Card className="group transition-all hover:border-primary/30 hover:shadow-sm">
+        <CardContent className="p-4 sm:p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary text-primary">
+                <User weight="light" className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold group-hover:text-primary transition-colors">
+                    {member.name}
+                  </h3>
+                  {member.position && (
+                    <Badge variant="secondary" className="text-xs">
+                      {member.position}
+                    </Badge>
+                  )}
+                </div>
+                {member.department && (
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {member.department}
+                    {member.district ? ` / ${member.district}` : ""}
+                  </p>
+                )}
+              </div>
+            </div>
+            {!member.isActive && (
+              <Badge variant="outline" className="text-xs text-muted-foreground">
+                비활동
+              </Badge>
+            )}
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+            {member.phone && (
+              <span className="flex items-center gap-1">
+                <Phone weight="light" className="h-3.5 w-3.5" />
+                {member.phone}
+              </span>
+            )}
+            {member.address && (
+              <span className="flex items-center gap-1 truncate max-w-xs">
+                <MapPin weight="light" className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{member.address}</span>
+              </span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
+  );
+}
