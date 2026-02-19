@@ -1,0 +1,46 @@
+always the language has to be korean
+Framework
+Next.js 16 (App Router)
+Built-in React Compiler (no more useMemo) and stable Turbopack for instant HMR.
+Language
+TypeScript 5.x+
+Using strictest mode. 2026 features include better Auto-Imports and Type-Stripping for faster builds.
+Styling
+Tailwind CSS v4
+A zero-runtime, CSS-first engine. Uses Container Queries natively for truly responsive components.
+UI Library
+shadcn/ui + Radix
+The industry standard for accessible, headless components that you "own" in your source code.
+State/Data
+TanStack Query v6
+Handles server-state (caching, retries) with full TypeScript inference from your API routes.
+Database/Backend
+Supabase (PostgreSQL)
+Provides PostgREST for auto-generated types and pgvector for AI/Search capabilities.
+ORM / Query
+Drizzle ORM
+A "TypeScript-first" ORM. It's lighter than Prisma and maps 1:1 with SQL, providing perfect type safety.
+Validation
+Zod / Valibot
+Schema validation that doubles as your TypeScript type definitions for API inputs/outputs.
+Tooling
+Biome
+A single Rust-based tool that replaces ESLint and Prettier. It is 25x faster than the old stack.
+Deployment
+Vercel
+Integrated with Next.js 16 for Partial Pre-Rendering (PPR) and Global Edge functions.
+
+
+Primary Font
+Noto Sans KR
+High-density Hangul legibility. Use the Variable weight for performance.
+Code/UI Mono
+Geist Mono
+Designed by Vercel for maximum readability in data-heavy UIs.
+Iconography
+Phosphor Icons
+Use "Thin" or "Light" weights (e.g., <Horse weight="thin" />) to maintain a premium feel.
+Emoji Policy
+Strict Zero-Emoji
+Use Phosphor icons in semantic colors (e.g., a blue "Info" icon instead of ℹ️) to keep the brand professional.
+Color Palette
