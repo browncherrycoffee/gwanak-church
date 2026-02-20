@@ -33,7 +33,9 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
     relationship: initialData?.relationship ?? "",
     baptismDate: initialData?.baptismDate ?? "",
     baptismType: initialData?.baptismType ?? "",
+    baptismChurch: initialData?.baptismChurch ?? "",
     registrationDate: initialData?.registrationDate ?? (initialData ? "" : new Date().toISOString().slice(0, 10)),
+    memberJoinDate: initialData?.memberJoinDate ?? "",
     notes: initialData?.notes ?? "",
   });
 
@@ -221,6 +223,22 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
                   type="date"
                   value={form.baptismDate}
                   onChange={(e) => handleChange("baptismDate", e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">세례받은 교회</label>
+                <Input
+                  value={form.baptismChurch}
+                  onChange={(e) => handleChange("baptismChurch", e.target.value)}
+                  placeholder="세례받은 교회"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">세례교인회원가입일</label>
+                <Input
+                  type="date"
+                  value={form.memberJoinDate}
+                  onChange={(e) => handleChange("memberJoinDate", e.target.value)}
                 />
               </div>
             </div>

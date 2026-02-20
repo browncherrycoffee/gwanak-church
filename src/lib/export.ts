@@ -14,7 +14,9 @@ const CSV_HEADERS = [
   "관계",
   "세례종류",
   "세례일",
+  "세례받은교회",
   "등록일",
+  "세례교인회원가입일",
   "활동여부",
   "비고",
 ];
@@ -42,7 +44,9 @@ export function exportMembersCsv(members: Member[]): void {
     m.relationship,
     m.baptismType,
     m.baptismDate,
+    m.baptismChurch,
     m.registrationDate,
+    m.memberJoinDate,
     m.isActive ? "활동" : "비활동",
     m.notes,
   ]);

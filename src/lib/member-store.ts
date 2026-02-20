@@ -5,7 +5,7 @@ import { sampleMembers } from "./sample-data";
 
 const STORAGE_KEY = "gwanak-members";
 const VERSION_KEY = "gwanak-data-version";
-const DATA_VERSION = 3;
+const DATA_VERSION = 4;
 
 function loadFromStorage(): Member[] {
   if (typeof window === "undefined") return [...sampleMembers];

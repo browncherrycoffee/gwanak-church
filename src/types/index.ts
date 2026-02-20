@@ -13,7 +13,9 @@ export interface Member {
   relationship: string | null;
   baptismDate: string | null;
   baptismType: string | null;
+  baptismChurch: string | null;
   registrationDate: string | null;
+  memberJoinDate: string | null;
   notes: string | null;
   isActive: boolean;
   createdAt: string;
@@ -34,6 +36,8 @@ export interface MemberFormData {
   relationship: string;
   baptismDate: string;
   baptismType: string;
+  baptismChurch: string;
   registrationDate: string;
+  memberJoinDate: string;
   notes: string;
 }

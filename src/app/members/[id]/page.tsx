@@ -82,6 +82,8 @@ export default function MemberDetailPage({
   const baptismRows = [
     { icon: CrossIcon, label: "세례 종류", value: member.baptismType },
     { icon: CalendarBlank, label: "세례일", value: member.baptismDate ? formatDate(member.baptismDate) : null },
+    { icon: CrossIcon, label: "세례받은 교회", value: member.baptismChurch },
+    { icon: CalendarBlank, label: "세례교인회원가입일", value: member.memberJoinDate ? formatDate(member.memberJoinDate) : null },
   ];
 
   return (
@@ -264,7 +266,7 @@ export default function MemberDetailPage({
           })()}
 
           {/* 세례 정보 */}
-          {(member.baptismType || member.baptismDate) && (
+          {(member.baptismType || member.baptismDate || member.baptismChurch || member.memberJoinDate) && (
             <Card>
               <CardContent className="p-5">
                 <h2 className="text-sm font-semibold text-muted-foreground mb-4">세례 정보</h2>
