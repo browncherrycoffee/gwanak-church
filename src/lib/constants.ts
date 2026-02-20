@@ -4,15 +4,12 @@ export const SITE_CONFIG = {
 } as const;
 
 export const POSITIONS = [
-  "담임목사",
-  "교수목사",
+  "목사",
   "강도사",
   "전도사",
   "장로",
   "집사",
   "성도",
-  "청년",
-  "학생",
 ] as const;
 
 export const DEPARTMENTS = [
@@ -21,10 +18,12 @@ export const DEPARTMENTS = [
   "제2여전도회",
   "제3남전도회",
   "제3여전도회",
-  "제4전도회",
-  "청년부직장인",
-  "청년부대학SFC",
-  "중고등SFC",
+  "제4남녀전도회",
+  "청년부(직장인)",
+  "청년부(대학SFC)",
+  "중고등부",
+  "유초등부",
+  "유아부",
 ] as const;
 
 export const BAPTISM_TYPES = [
@@ -32,6 +31,7 @@ export const BAPTISM_TYPES = [
   "학습",
   "세례",
   "입교",
+  "원입성도",
 ] as const;
 
 export const GENDERS = ["남", "여"] as const;
