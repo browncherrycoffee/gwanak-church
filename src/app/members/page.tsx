@@ -195,7 +195,7 @@ export default function MembersListPage() {
       <main className="mx-auto max-w-5xl px-4 py-6">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <h1 className="text-lg font-bold">전체 교적</h1>
+            <h1 className="text-lg font-bold">전체등록교인</h1>
             <Badge variant="secondary">{filtered.length}명</Badge>
             {filtered.length !== members.length && (
               <span className="text-xs text-muted-foreground">

@@ -167,7 +167,7 @@ export default function HomePage() {
       <div className="mt-12 flex items-center gap-8 text-center">
         <div>
           <p className="text-2xl font-bold text-primary">{nonRemoved.length}</p>
-          <p className="text-xs text-muted-foreground">전체 교인</p>
+          <p className="text-xs text-muted-foreground">전체등록교인</p>
         </div>
         <div className="h-8 w-px bg-border" />
         <div>
