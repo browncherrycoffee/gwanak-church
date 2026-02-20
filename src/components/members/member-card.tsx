@@ -35,9 +35,9 @@ export function MemberCard({ member }: MemberCardProps) {
                       {member.notes}
                     </Badge>
                   )}
-                  {!member.isActive && (
-                    <Badge variant="outline" className="text-xs text-muted-foreground">
-                      비활동
+                  {member.memberStatus !== "활동" && (
+                    <Badge variant="outline" className={`text-xs ${member.memberStatus === "제적" ? "text-destructive border-destructive/30" : "text-muted-foreground"}`}>
+                      {member.memberStatus}
                     </Badge>
                   )}
                 </div>

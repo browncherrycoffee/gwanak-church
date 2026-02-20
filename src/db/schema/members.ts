@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, timestamp, date, boolean } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, text, timestamp, date } from "drizzle-orm/pg-core";
 
 export const members = pgTable("members", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -17,7 +17,7 @@ export const members = pgTable("members", {
   baptismType: varchar("baptism_type", { length: 20 }),
   registrationDate: date("registration_date"),
   notes: text("notes"),
-  isActive: boolean("is_active").default(true),
+  memberStatus: varchar("member_status", { length: 10 }).default("활동"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });

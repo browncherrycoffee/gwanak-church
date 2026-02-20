@@ -5,7 +5,7 @@ import { sampleMembers } from "./sample-data";
 
 const STORAGE_KEY = "gwanak-members";
 const VERSION_KEY = "gwanak-data-version";
-const DATA_VERSION = 4;
+const DATA_VERSION = 5;
 
 function loadFromStorage(): Member[] {
   if (typeof window === "undefined") return [...sampleMembers];
@@ -65,7 +65,7 @@ export function addMember(data: MemberFormData): Member {
   const newMember: Member = {
     id: crypto.randomUUID(),
     ...data,
-    isActive: true,
+    memberStatus: data.memberStatus || "활동",
     createdAt: now,
     updatedAt: now,
   };
@@ -90,15 +90,16 @@ export function updateMember(id: string, data: Partial<MemberFormData>): Member 
   return updated;
 }
 
-export function toggleMemberActive(id: string): Member | null {
+export function toggleMemberStatus(id: string): Member | null {
   const index = members.findIndex((m) => m.id === id);
   if (index === -1) return null;
   const existing = members[index];
   if (!existing) return null;
 
+  const next = existing.memberStatus === "활동" ? "비활동" : "활동";
   const updated: Member = {
     ...existing,
-    isActive: !existing.isActive,
+    memberStatus: next,
     updatedAt: new Date().toISOString(),
   };
   members = [...members.slice(0, index), updated, ...members.slice(index + 1)];

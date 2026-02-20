@@ -59,7 +59,7 @@ export default function MembersListPage() {
   const [query, setQuery] = useState("");
   const [positionFilter, setPositionFilter] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("");
-  const [activeFilter, setActiveFilter] = useState<"" | "active" | "inactive">("");
+  const [activeFilter, setActiveFilter] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [showFilters, setShowFilters] = useState(false);
 
@@ -74,16 +74,18 @@ export default function MembersListPage() {
     if (departmentFilter) {
       result = result.filter((m) => m.department === departmentFilter);
     }
-    if (activeFilter === "active") {
-      result = result.filter((m) => m.isActive);
-    } else if (activeFilter === "inactive") {
-      result = result.filter((m) => !m.isActive);
+    if (activeFilter === "활동") {
+      result = result.filter((m) => m.memberStatus === "활동");
+    } else if (activeFilter === "비활동") {
+      result = result.filter((m) => m.memberStatus === "비활동");
+    } else if (activeFilter === "제적") {
+      result = result.filter((m) => m.memberStatus === "제적");
     }
 
     return query ? result : sortMembers(result, sortKey);
   }, [members, query, positionFilter, departmentFilter, activeFilter, sortKey]);
 
-  const activeCount = members.filter((m) => m.isActive).length;
+  const activeCount = members.filter((m) => m.memberStatus === "활동").length;
   const hasFilters = positionFilter || departmentFilter || activeFilter;
 
   return (
@@ -164,11 +166,12 @@ export default function MembersListPage() {
               <select
                 className="rounded-md border bg-background px-3 py-1.5 text-sm"
                 value={activeFilter}
-                onChange={(e) => setActiveFilter(e.target.value as "" | "active" | "inactive")}
+                onChange={(e) => setActiveFilter(e.target.value)}
               >
                 <option value="">전체 상태</option>
-                <option value="active">활동</option>
-                <option value="inactive">비활동</option>
+                <option value="활동">활동</option>
+                <option value="비활동">비활동</option>
+                <option value="제적">제적</option>
               </select>
               {hasFilters && (
                 <Button
@@ -202,7 +205,7 @@ export default function MembersListPage() {
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">
-              활동 {activeCount}명
+              출석 {activeCount}명
             </span>
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <SortAscending weight="light" className="h-3.5 w-3.5" />

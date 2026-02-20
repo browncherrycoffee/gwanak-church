@@ -17,6 +17,7 @@ const HEADER_MAP: Record<string, keyof MemberFormData> = {
   "세례받은교회": "baptismChurch",
   "등록일": "registrationDate",
   "세례교인회원가입일": "memberJoinDate",
+  "활동여부": "memberStatus",
   "비고": "notes",
 };
 
@@ -95,6 +96,7 @@ export function parseCsvImport(csvText: string): { members: MemberFormData[]; er
       baptismChurch: "",
       registrationDate: new Date().toISOString().slice(0, 10),
       memberJoinDate: "",
+      memberStatus: "활동",
       notes: "",
     };
 

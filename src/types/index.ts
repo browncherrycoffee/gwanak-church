@@ -17,7 +17,7 @@ export interface Member {
   registrationDate: string | null;
   memberJoinDate: string | null;
   notes: string | null;
-  isActive: boolean;
+  memberStatus: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -39,5 +39,6 @@ export interface MemberFormData {
   baptismChurch: string;
   registrationDate: string;
   memberJoinDate: string;
+  memberStatus: string;
   notes: string;
 }

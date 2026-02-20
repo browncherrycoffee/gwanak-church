@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { FloppyDisk, ArrowLeft } from "@phosphor-icons/react";
-import { POSITIONS, DEPARTMENTS, BAPTISM_TYPES, GENDERS, RELATIONSHIPS } from "@/lib/constants";
+import { POSITIONS, DEPARTMENTS, BAPTISM_TYPES, GENDERS, RELATIONSHIPS, MEMBER_STATUSES } from "@/lib/constants";
 import { formatPhoneNumber } from "@/lib/utils";
 import type { Member, MemberFormData } from "@/types";
 
@@ -36,6 +36,7 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
     baptismChurch: initialData?.baptismChurch ?? "",
     registrationDate: initialData?.registrationDate ?? (initialData ? "" : new Date().toISOString().slice(0, 10)),
     memberJoinDate: initialData?.memberJoinDate ?? "",
+    memberStatus: initialData?.memberStatus ?? "활동",
     notes: initialData?.notes ?? "",
   });
 
@@ -164,6 +165,18 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
                   value={form.registrationDate}
                   onChange={(e) => handleChange("registrationDate", e.target.value)}
                 />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">상태</label>
+                <select
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={form.memberStatus}
+                  onChange={(e) => handleChange("memberStatus", e.target.value)}
+                >
+                  {MEMBER_STATUSES.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>

@@ -17,7 +17,8 @@ export default function HomePage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const members = useSyncExternalStore(subscribe, getMembers, getMembers);
 
-  const activeCount = members.filter((m) => m.isActive).length;
+  const nonRemoved = members.filter((m) => m.memberStatus !== "제적");
+  const activeCount = nonRemoved.filter((m) => m.memberStatus === "활동").length;
 
   const suggestions = useMemo(() => {
     if (!query.trim() || query.trim().length < 1) return [];
@@ -165,13 +166,13 @@ export default function HomePage() {
       {/* 통계 */}
       <div className="mt-12 flex items-center gap-8 text-center">
         <div>
-          <p className="text-2xl font-bold text-primary">{members.length}</p>
+          <p className="text-2xl font-bold text-primary">{nonRemoved.length}</p>
           <p className="text-xs text-muted-foreground">전체 교인</p>
         </div>
         <div className="h-8 w-px bg-border" />
         <div>
           <p className="text-2xl font-bold text-primary">{activeCount}</p>
-          <p className="text-xs text-muted-foreground">활동 교인</p>
+          <p className="text-xs text-muted-foreground">출석 교인</p>
         </div>
         <div className="h-8 w-px bg-border" />
         <div>

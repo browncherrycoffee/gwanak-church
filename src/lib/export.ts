@@ -47,7 +47,7 @@ export function exportMembersCsv(members: Member[]): void {
     m.baptismChurch,
     m.registrationDate,
     m.memberJoinDate,
-    m.isActive ? "활동" : "비활동",
+    m.memberStatus,
     m.notes,
   ]);
 

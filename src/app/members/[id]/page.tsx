@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { getMember, deleteMember, toggleMemberActive, getMembers, subscribe } from "@/lib/member-store";
+import { getMember, deleteMember, toggleMemberStatus, getMembers, subscribe } from "@/lib/member-store";
 import { formatDate } from "@/lib/utils";
 
 export default function MemberDetailPage({
@@ -133,8 +133,10 @@ export default function MemberDetailPage({
                 {member.position && (
                   <Badge className="bg-primary">{member.position}</Badge>
                 )}
-                {!member.isActive && (
-                  <Badge variant="outline">비활동</Badge>
+                {member.memberStatus !== "활동" && (
+                  <Badge variant="outline" className={member.memberStatus === "제적" ? "text-destructive border-destructive/30" : ""}>
+                    {member.memberStatus}
+                  </Badge>
                 )}
               </div>
               {member.department && (
@@ -148,15 +150,15 @@ export default function MemberDetailPage({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => toggleMemberActive(id)}
-            className={member.isActive ? "text-primary" : "text-muted-foreground"}
+            onClick={() => toggleMemberStatus(id)}
+            className={member.memberStatus === "활동" ? "text-primary" : "text-muted-foreground"}
           >
-            {member.isActive ? (
+            {member.memberStatus === "활동" ? (
               <ToggleRight weight="fill" className="mr-1.5 h-5 w-5" />
             ) : (
               <ToggleLeft weight="light" className="mr-1.5 h-5 w-5" />
             )}
-            {member.isActive ? "활동" : "비활동"}
+            {member.memberStatus}
           </Button>
         </div>
 

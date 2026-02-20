@@ -46,4 +46,6 @@ export const RELATIONSHIPS = [
   "기타",
 ] as const;
 
+export const MEMBER_STATUSES = ["활동", "비활동", "제적"] as const;
+
 export const ITEMS_PER_PAGE = 20;
