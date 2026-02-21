@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { FloppyDisk, ArrowLeft } from "@phosphor-icons/react";
+import { FloppyDisk, ArrowLeft, Camera, Trash } from "@phosphor-icons/react";
 import { POSITIONS, DEPARTMENTS, BAPTISM_TYPES, GENDERS, RELATIONSHIPS, MEMBER_STATUSES } from "@/lib/constants";
-import { formatPhoneNumber } from "@/lib/utils";
+import { formatPhoneNumber, resizeImage } from "@/lib/utils";
 import type { Member, MemberFormData } from "@/types";
 
 interface MemberFormProps {
@@ -19,6 +19,7 @@ interface MemberFormProps {
 
 export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormProps) {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<MemberFormData>({
     name: initialData?.name ?? "",
     phone: initialData?.phone ?? "",
@@ -43,6 +44,18 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
 
   const handleChange = (field: keyof MemberFormData, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const dataUrl = await resizeImage(file, 400, 400, 0.8);
+      setForm((prev) => ({ ...prev, photoUrl: dataUrl }));
+    } catch {
+      // ignore
+    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -117,13 +130,52 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
                 />
               </div>
               <div className="sm:col-span-2 lg:col-span-3">
-                <label className="text-sm font-medium mb-1.5 block">프로필 사진 URL</label>
-                <Input
-                  value={form.photoUrl}
-                  onChange={(e) => handleChange("photoUrl", e.target.value)}
-                  placeholder="https://example.com/photo.jpg"
-                  type="url"
-                />
+                <label className="text-sm font-medium mb-1.5 block">프로필 사진</label>
+                <div className="flex items-center gap-4">
+                  {form.photoUrl ? (
+                    <div className="relative h-20 w-20 shrink-0 rounded-full overflow-hidden bg-secondary">
+                      <img
+                        src={form.photoUrl}
+                        alt="프로필 미리보기"
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-secondary text-muted-foreground">
+                      <Camera weight="light" className="h-8 w-8" />
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Camera weight="light" className="mr-1.5 h-4 w-4" />
+                      사진 선택
+                    </Button>
+                    {form.photoUrl && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => setForm((prev) => ({ ...prev, photoUrl: "" }))}
+                      >
+                        <Trash weight="light" className="mr-1.5 h-4 w-4" />
+                        사진 삭제
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
