@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { User, Phone, MapPin } from "@phosphor-icons/react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,8 +18,19 @@ export function MemberCard({ member }: MemberCardProps) {
         <CardContent className="p-4 sm:p-5">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary text-primary">
-                <User weight="light" className="h-5 w-5" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary text-primary overflow-hidden">
+                {member.photoUrl ? (
+                  <Image
+                    src={member.photoUrl}
+                    alt={member.name}
+                    width={40}
+                    height={40}
+                    className="h-10 w-10 object-cover"
+                    unoptimized
+                  />
+                ) : (
+                  <User weight="light" className="h-5 w-5" />
+                )}
               </div>
               <div>
                 <div className="flex items-center gap-2">

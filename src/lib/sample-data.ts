@@ -38,6 +38,7 @@ function m(
     registrationDate,
     memberJoinDate,
     notes,
+    photoUrl: null,
     memberStatus: status,
     createdAt: ts,
     updatedAt: ts,

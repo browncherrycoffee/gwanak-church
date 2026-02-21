@@ -98,6 +98,7 @@ export function parseCsvImport(csvText: string): { members: MemberFormData[]; er
       memberJoinDate: "",
       memberStatus: "활동",
       notes: "",
+      photoUrl: "",
     };
 
     for (let j = 0; j < fields.length; j++) {

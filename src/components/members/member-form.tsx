@@ -38,6 +38,7 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
     memberJoinDate: initialData?.memberJoinDate ?? "",
     memberStatus: initialData?.memberStatus ?? "활동",
     notes: initialData?.notes ?? "",
+    photoUrl: initialData?.photoUrl ?? "",
   });
 
   const handleChange = (field: keyof MemberFormData, value: string) => {
@@ -113,6 +114,15 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
                   value={form.detailAddress}
                   onChange={(e) => handleChange("detailAddress", e.target.value)}
                   placeholder="동/호수"
+                />
+              </div>
+              <div className="sm:col-span-2 lg:col-span-3">
+                <label className="text-sm font-medium mb-1.5 block">프로필 사진 URL</label>
+                <Input
+                  value={form.photoUrl}
+                  onChange={(e) => handleChange("photoUrl", e.target.value)}
+                  placeholder="https://example.com/photo.jpg"
+                  type="url"
                 />
               </div>
             </div>

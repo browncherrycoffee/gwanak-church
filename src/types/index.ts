@@ -17,6 +17,7 @@ export interface Member {
   registrationDate: string | null;
   memberJoinDate: string | null;
   notes: string | null;
+  photoUrl: string | null;
   memberStatus: string;
   createdAt: string;
   updatedAt: string;
@@ -41,4 +42,5 @@ export interface MemberFormData {
   memberJoinDate: string;
   memberStatus: string;
   notes: string;
+  photoUrl: string;
 }

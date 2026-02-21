@@ -12,7 +12,6 @@ import {
   Phone,
   MapPin,
   CalendarBlank,
-  Cross as CrossIcon,
   Tag,
   UsersThree,
   Note,
@@ -20,6 +19,7 @@ import {
   ToggleRight,
   Printer,
 } from "@phosphor-icons/react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -80,9 +80,9 @@ export default function MemberDetailPage({
   ];
 
   const baptismRows = [
-    { icon: CrossIcon, label: "세례 종류", value: member.baptismType },
+    { icon: Cross, label: "세례 종류", value: member.baptismType },
     { icon: CalendarBlank, label: "세례일", value: member.baptismDate ? formatDate(member.baptismDate) : null },
-    { icon: CrossIcon, label: "세례받은 교회", value: member.baptismChurch },
+    { icon: Cross, label: "세례받은 교회", value: member.baptismChurch },
     { icon: CalendarBlank, label: "세례교인회원가입일", value: member.memberJoinDate ? formatDate(member.memberJoinDate) : null },
   ];
 
@@ -124,8 +124,19 @@ export default function MemberDetailPage({
         {/* 프로필 헤더 */}
         <div className="mb-6 flex items-start justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-secondary text-primary">
-              <User weight="light" className="h-8 w-8" />
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-secondary text-primary overflow-hidden">
+              {member.photoUrl ? (
+                <Image
+                  src={member.photoUrl}
+                  alt={member.name}
+                  width={64}
+                  height={64}
+                  className="h-16 w-16 object-cover"
+                  unoptimized
+                />
+              ) : (
+                <User weight="light" className="h-8 w-8" />
+              )}
             </div>
             <div>
               <div className="flex items-center gap-2">
