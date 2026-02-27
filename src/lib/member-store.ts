@@ -5,14 +5,31 @@ import { sampleMembers } from "./sample-data";
 
 const STORAGE_KEY = "gwanak-members";
 const VERSION_KEY = "gwanak-data-version";
-const DATA_VERSION = 7;
+const DATA_VERSION = 8;
 
 function loadFromStorage(): Member[] {
   if (typeof window === "undefined") return [...sampleMembers];
   try {
     const storedVersion = localStorage.getItem(VERSION_KEY);
     if (storedVersion !== String(DATA_VERSION)) {
-      localStorage.removeItem(STORAGE_KEY);
+      // 마이그레이션: 기존 데이터 보존하며 새 필드 추가
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const rawParsed = JSON.parse(stored) as Array<Record<string, unknown>>;
+        if (Array.isArray(rawParsed) && rawParsed.length > 0) {
+          const migrated: Member[] = rawParsed.map((raw) => {
+            const m = raw as unknown as Member;
+            return {
+              ...m,
+              prayerRequests: Array.isArray(m.prayerRequests) ? m.prayerRequests : [],
+              pastoralVisits: Array.isArray(m.pastoralVisits) ? m.pastoralVisits : [],
+            };
+          });
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+          localStorage.setItem(VERSION_KEY, String(DATA_VERSION));
+          return migrated;
+        }
+      }
       localStorage.setItem(VERSION_KEY, String(DATA_VERSION));
       return [...sampleMembers];
     }
@@ -66,6 +83,8 @@ export function addMember(data: MemberFormData): Member {
     id: crypto.randomUUID(),
     ...data,
     memberStatus: data.memberStatus || "활동",
+    prayerRequests: [],
+    pastoralVisits: [],
     createdAt: now,
     updatedAt: now,
   };
@@ -120,6 +139,76 @@ export function deleteMember(id: string): boolean {
 export function resetMembers(): void {
   members = [...sampleMembers];
   notify();
+}
+
+export function addPrayerRequest(memberId: string, content: string): Member | null {
+  const index = members.findIndex((m) => m.id === memberId);
+  if (index === -1) return null;
+  const existing = members[index];
+  if (!existing) return null;
+
+  const updated: Member = {
+    ...existing,
+    prayerRequests: [
+      { id: crypto.randomUUID(), content, createdAt: new Date().toISOString() },
+      ...existing.prayerRequests,
+    ],
+    updatedAt: new Date().toISOString(),
+  };
+  members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
+  notify();
+  return updated;
+}
+
+export function deletePrayerRequest(memberId: string, requestId: string): Member | null {
+  const index = members.findIndex((m) => m.id === memberId);
+  if (index === -1) return null;
+  const existing = members[index];
+  if (!existing) return null;
+
+  const updated: Member = {
+    ...existing,
+    prayerRequests: existing.prayerRequests.filter((r) => r.id !== requestId),
+    updatedAt: new Date().toISOString(),
+  };
+  members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
+  notify();
+  return updated;
+}
+
+export function addPastoralVisit(memberId: string, visitedAt: string, content: string): Member | null {
+  const index = members.findIndex((m) => m.id === memberId);
+  if (index === -1) return null;
+  const existing = members[index];
+  if (!existing) return null;
+
+  const updated: Member = {
+    ...existing,
+    pastoralVisits: [
+      { id: crypto.randomUUID(), visitedAt, content, createdAt: new Date().toISOString() },
+      ...existing.pastoralVisits,
+    ],
+    updatedAt: new Date().toISOString(),
+  };
+  members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
+  notify();
+  return updated;
+}
+
+export function deletePastoralVisit(memberId: string, visitId: string): Member | null {
+  const index = members.findIndex((m) => m.id === memberId);
+  if (index === -1) return null;
+  const existing = members[index];
+  if (!existing) return null;
+
+  const updated: Member = {
+    ...existing,
+    pastoralVisits: existing.pastoralVisits.filter((v) => v.id !== visitId),
+    updatedAt: new Date().toISOString(),
+  };
+  members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
+  notify();
+  return updated;
 }
 
 export function subscribe(listener: () => void) {

@@ -40,6 +40,8 @@ function m(
     notes,
     photoUrl: null,
     memberStatus: status,
+    prayerRequests: [],
+    pastoralVisits: [],
     createdAt: ts,
     updatedAt: ts,
   };

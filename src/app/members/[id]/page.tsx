@@ -18,13 +18,26 @@ import {
   ToggleLeft,
   ToggleRight,
   Printer,
+  Plus,
+  Heart,
+  House,
 } from "@phosphor-icons/react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { getMember, deleteMember, toggleMemberStatus, getMembers, subscribe } from "@/lib/member-store";
+import {
+  getMember,
+  deleteMember,
+  toggleMemberStatus,
+  getMembers,
+  subscribe,
+  addPrayerRequest,
+  deletePrayerRequest,
+  addPastoralVisit,
+  deletePastoralVisit,
+} from "@/lib/member-store";
 import { formatDate } from "@/lib/utils";
 
 export default function MemberDetailPage({
@@ -36,6 +49,11 @@ export default function MemberDetailPage({
   const router = useRouter();
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showPrayerForm, setShowPrayerForm] = useState(false);
+  const [prayerInput, setPrayerInput] = useState("");
+  const [showVisitForm, setShowVisitForm] = useState(false);
+  const [visitDate, setVisitDate] = useState("");
+  const [visitContent, setVisitContent] = useState("");
 
   // subscribe to store changes
   useSyncExternalStore(subscribe, getMembers, getMembers);
@@ -310,6 +328,177 @@ export default function MemberDetailPage({
               </CardContent>
             </Card>
           )}
+
+          {/* 기도제목 */}
+          <Card>
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-muted-foreground flex items-center gap-1.5">
+                  <Heart weight="light" className="h-4 w-4" />
+                  기도제목
+                </h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => { setShowPrayerForm((v) => !v); setPrayerInput(""); }}
+                >
+                  <Plus weight="bold" className="h-3.5 w-3.5 mr-1" />
+                  추가
+                </Button>
+              </div>
+              {showPrayerForm && (
+                <div className="mb-4 space-y-2">
+                  <textarea
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+                    rows={3}
+                    placeholder="기도제목을 입력하세요"
+                    value={prayerInput}
+                    onChange={(e) => setPrayerInput(e.target.value)}
+                  />
+                  <div className="flex gap-2 justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => { setShowPrayerForm(false); setPrayerInput(""); }}
+                    >
+                      취소
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="h-7 text-xs"
+                      disabled={!prayerInput.trim()}
+                      onClick={() => {
+                        if (prayerInput.trim()) {
+                          addPrayerRequest(id, prayerInput.trim());
+                          setPrayerInput("");
+                          setShowPrayerForm(false);
+                        }
+                      }}
+                    >
+                      저장
+                    </Button>
+                  </div>
+                </div>
+              )}
+              {member.prayerRequests.length === 0 ? (
+                <p className="text-sm text-muted-foreground">등록된 기도제목이 없습니다.</p>
+              ) : (
+                <div className="space-y-3">
+                  {[...member.prayerRequests]
+                    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+                    .map((req) => (
+                      <div key={req.id} className="flex items-start gap-3 group">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-muted-foreground mb-0.5">
+                            {new Date(req.createdAt).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })}
+                          </p>
+                          <p className="text-sm whitespace-pre-wrap">{req.content}</p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
+                          onClick={() => deletePrayerRequest(id, req.id)}
+                        >
+                          <Trash weight="light" className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 심방 기록 */}
+          <Card>
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-muted-foreground flex items-center gap-1.5">
+                  <House weight="light" className="h-4 w-4" />
+                  심방 기록
+                </h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => { setShowVisitForm((v) => !v); setVisitDate(""); setVisitContent(""); }}
+                >
+                  <Plus weight="bold" className="h-3.5 w-3.5 mr-1" />
+                  추가
+                </Button>
+              </div>
+              {showVisitForm && (
+                <div className="mb-4 space-y-2">
+                  <input
+                    type="date"
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                    value={visitDate}
+                    onChange={(e) => setVisitDate(e.target.value)}
+                  />
+                  <textarea
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+                    rows={3}
+                    placeholder="심방 내용을 입력하세요"
+                    value={visitContent}
+                    onChange={(e) => setVisitContent(e.target.value)}
+                  />
+                  <div className="flex gap-2 justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => { setShowVisitForm(false); setVisitDate(""); setVisitContent(""); }}
+                    >
+                      취소
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="h-7 text-xs"
+                      disabled={!visitDate || !visitContent.trim()}
+                      onClick={() => {
+                        if (visitDate && visitContent.trim()) {
+                          addPastoralVisit(id, visitDate, visitContent.trim());
+                          setVisitDate("");
+                          setVisitContent("");
+                          setShowVisitForm(false);
+                        }
+                      }}
+                    >
+                      저장
+                    </Button>
+                  </div>
+                </div>
+              )}
+              {member.pastoralVisits.length === 0 ? (
+                <p className="text-sm text-muted-foreground">등록된 심방 기록이 없습니다.</p>
+              ) : (
+                <div className="space-y-3">
+                  {[...member.pastoralVisits]
+                    .sort((a, b) => b.visitedAt.localeCompare(a.visitedAt))
+                    .map((visit) => (
+                      <div key={visit.id} className="flex items-start gap-3 group">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-muted-foreground mb-0.5">
+                            {visit.visitedAt}
+                          </p>
+                          <p className="text-sm whitespace-pre-wrap">{visit.content}</p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
+                          onClick={() => deletePastoralVisit(id, visit.id)}
+                        >
+                          <Trash weight="light" className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </main>
 

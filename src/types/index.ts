@@ -1,3 +1,16 @@
+export interface PrayerRequest {
+  id: string;
+  content: string;
+  createdAt: string; // ISO string
+}
+
+export interface PastoralVisit {
+  id: string;
+  visitedAt: string; // "YYYY-MM-DD"
+  content: string;
+  createdAt: string;
+}
+
 export interface Member {
   id: string;
   name: string;
@@ -19,6 +32,8 @@ export interface Member {
   notes: string | null;
   photoUrl: string | null;
   memberStatus: string;
+  prayerRequests: PrayerRequest[];
+  pastoralVisits: PastoralVisit[];
   createdAt: string;
   updatedAt: string;
 }
