@@ -118,8 +118,8 @@ export default function ImportMembersPage() {
                 </h2>
               </div>
               <ul className="space-y-1 text-sm text-muted-foreground">
-                {errors.map((err, i) => (
-                  <li key={i}>{err}</li>
+                {errors.map((err) => (
+                  <li key={err}>{err}</li>
                 ))}
               </ul>
             </CardContent>
@@ -154,7 +154,7 @@ export default function ImportMembersPage() {
                   </thead>
                   <tbody>
                     {preview.slice(0, 20).map((m, i) => (
-                      <tr key={i} className="border-b last:border-0">
+                      <tr key={`${m.name}-${i}`} className="border-b last:border-0">
                         <td className="py-2 pr-4 font-medium">{m.name}</td>
                         <td className="py-2 pr-4 text-muted-foreground">{m.phone || "-"}</td>
                         <td className="py-2 pr-4 text-muted-foreground">{m.position || "-"}</td>

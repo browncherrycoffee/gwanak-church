@@ -61,11 +61,14 @@
   button,
   a[href^="/members/"][href$="/edit"],
   .no-print {
+    /* biome-ignore lint/complexity/noImportantStyles: print media override requires !important */
     display: none !important;
   }
 
   main {
+    /* biome-ignore lint/complexity/noImportantStyles: print media override requires !important */
     padding: 0 !important;
+    /* biome-ignore lint/complexity/noImportantStyles: print media override requires !important */
     max-width: none !important;
   }
 

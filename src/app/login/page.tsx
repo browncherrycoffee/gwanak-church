@@ -58,6 +58,7 @@ function LoginForm() {
               setError("");
             }}
             placeholder="비밀번호"
+            // biome-ignore lint/a11y/noAutofocus: intentional focus on single-field login form
             autoFocus
             className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />

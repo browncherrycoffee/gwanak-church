@@ -1,4 +1,4 @@
-import { createHmac } from "crypto";
+import { createHmac } from "node:crypto";
 
 function getSecret(): string {
   return process.env.AUTH_SECRET || process.env.ADMIN_PASSWORD || "fallback-dev-secret";
@@ -21,7 +21,7 @@ export function verifyAuthToken(token: string): boolean {
 
   // Check token age (max 7 days)
   const age = Date.now() - Number(timestamp);
-  if (isNaN(age) || age < 0 || age > 7 * 24 * 60 * 60 * 1000) return false;
+  if (Number.isNaN(age) || age < 0 || age > 7 * 24 * 60 * 60 * 1000) return false;
 
   const hmac = createHmac("sha256", getSecret());
   hmac.update(timestamp);

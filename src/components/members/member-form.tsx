@@ -73,10 +73,11 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
             <h3 className="text-sm font-semibold text-muted-foreground mb-4">기본 정보</h3>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div>
-                <label className="text-sm font-medium mb-1.5 block">
+                <label htmlFor="member-name" className="text-sm font-medium mb-1.5 block">
                   이름 <span className="text-destructive">*</span>
                 </label>
                 <Input
+                  id="member-name"
                   value={form.name}
                   onChange={(e) => handleChange("name", e.target.value)}
                   placeholder="이름"
@@ -84,8 +85,9 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">연락처</label>
+                <label htmlFor="member-phone" className="text-sm font-medium mb-1.5 block">연락처</label>
                 <Input
+                  id="member-phone"
                   value={form.phone}
                   onChange={(e) => handleChange("phone", formatPhoneNumber(e.target.value))}
                   placeholder="010-0000-0000"
@@ -93,8 +95,9 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">성별</label>
+                <label htmlFor="member-gender" className="text-sm font-medium mb-1.5 block">성별</label>
                 <select
+                  id="member-gender"
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   value={form.gender}
                   onChange={(e) => handleChange("gender", e.target.value)}
@@ -106,34 +109,38 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
                 </select>
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">생년월일</label>
+                <label htmlFor="member-birthDate" className="text-sm font-medium mb-1.5 block">생년월일</label>
                 <Input
+                  id="member-birthDate"
                   type="date"
                   value={form.birthDate}
                   onChange={(e) => handleChange("birthDate", e.target.value)}
                 />
               </div>
               <div className="sm:col-span-2">
-                <label className="text-sm font-medium mb-1.5 block">주소</label>
+                <label htmlFor="member-address" className="text-sm font-medium mb-1.5 block">주소</label>
                 <Input
+                  id="member-address"
                   value={form.address}
                   onChange={(e) => handleChange("address", e.target.value)}
                   placeholder="주소"
                 />
               </div>
               <div className="sm:col-span-2 lg:col-span-1">
-                <label className="text-sm font-medium mb-1.5 block">상세 주소</label>
+                <label htmlFor="member-detailAddress" className="text-sm font-medium mb-1.5 block">상세 주소</label>
                 <Input
+                  id="member-detailAddress"
                   value={form.detailAddress}
                   onChange={(e) => handleChange("detailAddress", e.target.value)}
                   placeholder="동/호수"
                 />
               </div>
               <div className="sm:col-span-2 lg:col-span-3">
-                <label className="text-sm font-medium mb-1.5 block">프로필 사진</label>
+                <label htmlFor="member-photo" className="text-sm font-medium mb-1.5 block">프로필 사진</label>
                 <div className="flex items-center gap-4">
                   {form.photoUrl ? (
                     <div className="relative h-20 w-20 shrink-0 rounded-full overflow-hidden bg-secondary">
+                      {/* biome-ignore lint/performance/noImgElement: data URL from resizeImage cannot use next/image */}
                       <img
                         src={form.photoUrl}
                         alt="프로필 미리보기"
@@ -147,6 +154,7 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
                   )}
                   <div className="flex flex-col gap-2">
                     <input
+                      id="member-photo"
                       ref={fileInputRef}
                       type="file"
                       accept="image/*"
@@ -187,8 +195,9 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
             <h3 className="text-sm font-semibold text-muted-foreground mb-4">교회 정보</h3>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div>
-                <label className="text-sm font-medium mb-1.5 block">직분</label>
+                <label htmlFor="member-position" className="text-sm font-medium mb-1.5 block">직분</label>
                 <select
+                  id="member-position"
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   value={form.position}
                   onChange={(e) => handleChange("position", e.target.value)}
@@ -200,8 +209,9 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
                 </select>
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">소속</label>
+                <label htmlFor="member-department" className="text-sm font-medium mb-1.5 block">소속</label>
                 <select
+                  id="member-department"
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   value={form.department}
                   onChange={(e) => handleChange("department", e.target.value)}
@@ -213,24 +223,27 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
                 </select>
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">구역</label>
+                <label htmlFor="member-district" className="text-sm font-medium mb-1.5 block">구역</label>
                 <Input
+                  id="member-district"
                   value={form.district}
                   onChange={(e) => handleChange("district", e.target.value)}
                   placeholder="예: 1구역"
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">등록일</label>
+                <label htmlFor="member-registrationDate" className="text-sm font-medium mb-1.5 block">등록일</label>
                 <Input
+                  id="member-registrationDate"
                   type="date"
                   value={form.registrationDate}
                   onChange={(e) => handleChange("registrationDate", e.target.value)}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">상태</label>
+                <label htmlFor="member-memberStatus" className="text-sm font-medium mb-1.5 block">상태</label>
                 <select
+                  id="member-memberStatus"
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   value={form.memberStatus}
                   onChange={(e) => handleChange("memberStatus", e.target.value)}
@@ -250,16 +263,18 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
             <h3 className="text-sm font-semibold text-muted-foreground mb-4">가족 정보</h3>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div>
-                <label className="text-sm font-medium mb-1.5 block">세대주</label>
+                <label htmlFor="member-familyHead" className="text-sm font-medium mb-1.5 block">세대주</label>
                 <Input
+                  id="member-familyHead"
                   value={form.familyHead}
                   onChange={(e) => handleChange("familyHead", e.target.value)}
                   placeholder="세대주 이름"
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">관계</label>
+                <label htmlFor="member-relationship" className="text-sm font-medium mb-1.5 block">관계</label>
                 <select
+                  id="member-relationship"
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   value={form.relationship}
                   onChange={(e) => handleChange("relationship", e.target.value)}
@@ -280,8 +295,9 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
             <h3 className="text-sm font-semibold text-muted-foreground mb-4">세례 정보</h3>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div>
-                <label className="text-sm font-medium mb-1.5 block">세례 종류</label>
+                <label htmlFor="member-baptismType" className="text-sm font-medium mb-1.5 block">세례 종류</label>
                 <select
+                  id="member-baptismType"
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   value={form.baptismType}
                   onChange={(e) => handleChange("baptismType", e.target.value)}
@@ -293,24 +309,27 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
                 </select>
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">세례일</label>
+                <label htmlFor="member-baptismDate" className="text-sm font-medium mb-1.5 block">세례일</label>
                 <Input
+                  id="member-baptismDate"
                   type="date"
                   value={form.baptismDate}
                   onChange={(e) => handleChange("baptismDate", e.target.value)}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">세례받은 교회</label>
+                <label htmlFor="member-baptismChurch" className="text-sm font-medium mb-1.5 block">세례받은 교회</label>
                 <Input
+                  id="member-baptismChurch"
                   value={form.baptismChurch}
                   onChange={(e) => handleChange("baptismChurch", e.target.value)}
                   placeholder="세례받은 교회"
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">세례교인회원가입일</label>
+                <label htmlFor="member-memberJoinDate" className="text-sm font-medium mb-1.5 block">세례교인회원가입일</label>
                 <Input
+                  id="member-memberJoinDate"
                   type="date"
                   value={form.memberJoinDate}
                   onChange={(e) => handleChange("memberJoinDate", e.target.value)}
@@ -323,8 +342,9 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
 
           {/* 비고 */}
           <div>
-            <label className="text-sm font-medium mb-1.5 block">비고</label>
+            <label htmlFor="member-notes" className="text-sm font-medium mb-1.5 block">비고</label>
             <textarea
+              id="member-notes"
               className="flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
               value={form.notes}
               onChange={(e) => handleChange("notes", e.target.value)}
