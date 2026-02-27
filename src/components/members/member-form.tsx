@@ -356,16 +356,17 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
       </Card>
 
       {/* 버튼 */}
-      <div className="mt-6 flex gap-3 justify-end">
+      <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <Button
           type="button"
           variant="outline"
+          className="w-full sm:w-auto"
           onClick={() => router.back()}
         >
           <ArrowLeft weight="light" className="mr-2 h-4 w-4" />
           취소
         </Button>
-        <Button type="submit">
+        <Button type="submit" className="w-full sm:w-auto">
           <FloppyDisk weight="light" className="mr-2 h-4 w-4" />
           {submitLabel}
         </Button>

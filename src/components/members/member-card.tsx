@@ -33,7 +33,7 @@ export function MemberCard({ member }: MemberCardProps) {
                 )}
               </div>
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <h3 className="font-semibold group-hover:text-primary transition-colors">
                     {member.name}
                   </h3>
@@ -43,7 +43,7 @@ export function MemberCard({ member }: MemberCardProps) {
                     </Badge>
                   )}
                   {member.notes && (
-                    <Badge variant="outline" className="text-xs text-primary border-primary/30">
+                    <Badge variant="outline" className="text-xs text-primary border-primary/30 max-w-[120px] truncate">
                       {member.notes}
                     </Badge>
                   )}
