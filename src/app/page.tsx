@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Cross, MagnifyingGlass, Users, UserPlus, User, UploadSimple, TreeStructure } from "@phosphor-icons/react";
+import { Cross, MagnifyingGlass, Users, UserPlus, User, UploadSimple, TreeStructure, Heart } from "@phosphor-icons/react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getMembers, subscribe } from "@/lib/member-store";
@@ -141,7 +141,7 @@ export default function HomePage() {
           )}
         </div>
 
-        <div className="mt-6 flex justify-center gap-3">
+        <div className="mt-6 flex justify-center gap-3 flex-wrap">
           <Button
             onClick={handleSearch}
             className="rounded-full px-6"
@@ -168,6 +168,16 @@ export default function HomePage() {
             <Link href="/members/departments">
               <TreeStructure weight="light" className="mr-2 h-4 w-4" />
               부서별
+            </Link>
+          </Button>
+          <Button
+            asChild
+            variant="outline"
+            className="rounded-full px-6"
+          >
+            <Link href="/members/prayer">
+              <Heart weight="light" className="mr-2 h-4 w-4" />
+              기도 목록
             </Link>
           </Button>
         </div>
