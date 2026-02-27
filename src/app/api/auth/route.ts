@@ -70,7 +70,7 @@ export async function POST(request: Request) {
 
   // Success
   resetAttempts(ip);
-  const token = createAuthToken();
+  const token = await createAuthToken();
 
   const response = NextResponse.json({ ok: true });
   response.cookies.set(COOKIE_NAME, token, {

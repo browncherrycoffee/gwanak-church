@@ -5,7 +5,7 @@ import { verifyAuthToken } from "@/lib/auth";
 const PUBLIC_PATHS = ["/login", "/api/auth"];
 const STATIC_PREFIXES = ["/_next", "/favicon.ico", "/fonts", "/images", "/manifest.json"];
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (
@@ -17,7 +17,7 @@ export function middleware(request: NextRequest) {
   }
 
   const authCookie = request.cookies.get("gwanak-auth");
-  if (!authCookie?.value || !verifyAuthToken(authCookie.value)) {
+  if (!authCookie?.value || !(await verifyAuthToken(authCookie.value))) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("from", pathname);
     return NextResponse.redirect(loginUrl);
