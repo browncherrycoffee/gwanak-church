@@ -7,21 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { getMembers, subscribe } from "@/lib/member-store";
+import { getBirthMonthDay, daysUntilBirthday } from "@/lib/utils";
 import type { Member } from "@/types";
 
 const MONTH_LABELS = [
   "1월", "2월", "3월", "4월", "5월", "6월",
   "7월", "8월", "9월", "10월", "11월", "12월",
 ] as const;
-
-function getBirthMonthDay(birthDate: string): { month: number; day: number } | null {
-  const m = birthDate.match(/\d{4}-(\d{2})-(\d{2})/);
-  if (!m) return null;
-  const month = parseInt(m[1] ?? "0");
-  const day = parseInt(m[2] ?? "0");
-  if (!month || !day) return null;
-  return { month, day };
-}
 
 function getAge(birthDate: string): number | null {
   const today = new Date();
@@ -31,17 +23,6 @@ function getAge(birthDate: string): number | null {
   const m = today.getMonth() - birth.getMonth();
   if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
   return age < 0 ? null : age;
-}
-
-function daysUntilBirthday(birthDate: string, today: Date): number {
-  const md = getBirthMonthDay(birthDate);
-  if (!md) return Number.POSITIVE_INFINITY;
-  const year = today.getFullYear();
-  let next = new Date(year, md.month - 1, md.day);
-  if (next.getTime() < today.getTime()) {
-    next = new Date(year + 1, md.month - 1, md.day);
-  }
-  return Math.ceil((next.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 function BirthdayCard({

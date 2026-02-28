@@ -72,7 +72,7 @@ export default function ImportMembersPage() {
               아래 열 이름을 포함한 CSV 파일을 업로드하세요. <strong>이름</strong> 열은 필수입니다.
             </p>
             <div className="flex flex-wrap gap-1.5">
-              {["이름", "연락처", "주소", "상세주소", "생년월일", "성별", "직분", "소속", "구역", "세대주", "관계", "세례종류", "세례일", "등록일", "비고"].map((col) => (
+              {["이름", "연락처", "주소", "상세주소", "생년월일", "성별", "직분", "소속", "구역", "세대주", "관계", "세례종류", "세례일", "등록일", "세례받은교회", "세례교인회원가입일", "활동여부", "비고"].map((col) => (
                 <Badge key={col} variant={col === "이름" ? "default" : "secondary"} className="text-xs">
                   {col}
                 </Badge>

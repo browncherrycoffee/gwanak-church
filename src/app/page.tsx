@@ -8,26 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getMembers, subscribe } from "@/lib/member-store";
 import { searchMembers } from "@/lib/search";
-
-function getBirthMonthDay(birthDate: string): { month: number; day: number } | null {
-  const m = birthDate.match(/\d{4}-(\d{2})-(\d{2})/);
-  if (!m) return null;
-  const month = parseInt(m[1] ?? "0");
-  const day = parseInt(m[2] ?? "0");
-  if (!month || !day) return null;
-  return { month, day };
-}
-
-function daysUntilBirthday(birthDate: string, today: Date): number {
-  const md = getBirthMonthDay(birthDate);
-  if (!md) return Number.POSITIVE_INFINITY;
-  const year = today.getFullYear();
-  let next = new Date(year, md.month - 1, md.day);
-  if (next.getTime() < today.getTime()) {
-    next = new Date(year + 1, md.month - 1, md.day);
-  }
-  return Math.ceil((next.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-}
+import { getBirthMonthDay, daysUntilBirthday } from "@/lib/utils";
 
 export default function HomePage() {
   const [query, setQuery] = useState("");

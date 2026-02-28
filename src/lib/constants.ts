@@ -4,6 +4,7 @@ export const SITE_CONFIG = {
 } as const;
 
 export const POSITIONS = [
+  "담임목사",
   "목사",
   "강도사",
   "전도사",
@@ -33,6 +34,7 @@ export const BAPTISM_TYPES = [
   "세례",
   "입교",
   "원입성도",
+  "해당없음",
 ] as const;
 
 export const GENDERS = ["남", "여"] as const;
