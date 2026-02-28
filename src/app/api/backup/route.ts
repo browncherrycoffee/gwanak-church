@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { put, head, getDownloadUrl } from "@vercel/blob";
+import { put, head, BlobNotFoundError } from "@vercel/blob";
 import { verifyAuthToken } from "@/lib/auth";
 import type { Member } from "@/types";
 
@@ -36,14 +36,11 @@ export async function GET() {
   }
 
   try {
-    // Check if backup exists
     const blobInfo = await head(BLOB_PATHNAME);
-    if (!blobInfo) {
-      return NextResponse.json({ error: "저장된 백업이 없습니다." }, { status: 404 });
-    }
-
-    const downloadUrl = getDownloadUrl(blobInfo.url);
-    const res = await fetch(downloadUrl);
+    // Cache-busting: append timestamp to bypass CDN cache after overwrite
+    const baseUrl = new URL(blobInfo.url);
+    baseUrl.searchParams.set("_t", blobInfo.uploadedAt.getTime().toString());
+    const res = await fetch(baseUrl.toString(), { cache: "no-store" });
     if (!res.ok) {
       return NextResponse.json({ error: "백업 파일을 읽을 수 없습니다." }, { status: 500 });
     }
@@ -55,7 +52,10 @@ export async function GET() {
       members: payload.members,
       uploadedAt: blobInfo.uploadedAt,
     });
-  } catch {
+  } catch (err) {
+    if (err instanceof BlobNotFoundError) {
+      return NextResponse.json({ error: "저장된 백업이 없습니다." }, { status: 404 });
+    }
     return NextResponse.json({ error: "백업을 불러오는 중 오류가 발생했습니다." }, { status: 500 });
   }
 }
