@@ -23,6 +23,8 @@ import {
   House,
   Check,
   X,
+  CaretDown,
+  CaretUp,
 } from "@phosphor-icons/react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -63,6 +65,8 @@ export default function MemberDetailPage({
   const [editingVisitId, setEditingVisitId] = useState<string | null>(null);
   const [editingVisitDate, setEditingVisitDate] = useState("");
   const [editingVisitText, setEditingVisitText] = useState("");
+  const [showAllPrayers, setShowAllPrayers] = useState(false);
+  const [showAllVisits, setShowAllVisits] = useState(false);
 
   // subscribe to store changes
   useSyncExternalStore(subscribe, getMembers, getMembers);
@@ -396,10 +400,81 @@ export default function MemberDetailPage({
               {member.prayerRequests.length === 0 ? (
                 <p className="text-sm text-muted-foreground">등록된 기도제목이 없습니다.</p>
               ) : (() => {
-                // 연도별 그룹화 (최신순)
                 const sorted = [...member.prayerRequests].sort((a, b) =>
                   b.createdAt.localeCompare(a.createdAt)
                 );
+                const total = sorted.length;
+
+                const renderPrayerItem = (req: (typeof sorted)[number], showYear = false) => (
+                  <div key={req.id} className="flex items-start gap-3 group">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground mb-0.5">
+                        {/^\d{4}-\d{2}-\d{2}/.test(req.createdAt)
+                          ? new Date(req.createdAt).toLocaleDateString("ko-KR",
+                              showYear
+                                ? { year: "numeric", month: "long", day: "numeric" }
+                                : { month: "long", day: "numeric" }
+                            )
+                          : "날짜 미기재"}
+                      </p>
+                      {editingPrayerId === req.id ? (
+                        <div className="space-y-1.5">
+                          <textarea
+                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+                            rows={3}
+                            value={editingPrayerText}
+                            onChange={(e) => setEditingPrayerText(e.target.value)}
+                          />
+                          <div className="flex gap-1.5">
+                            <Button size="sm" className="h-7 px-2 text-xs" disabled={!editingPrayerText.trim()}
+                              onClick={() => { updatePrayerRequest(id, req.id, editingPrayerText.trim()); setEditingPrayerId(null); }}>
+                              <Check weight="bold" className="h-3 w-3 mr-1" />저장
+                            </Button>
+                            <Button size="sm" variant="outline" className="h-7 px-2 text-xs"
+                              onClick={() => setEditingPrayerId(null)}>
+                              <X weight="bold" className="h-3 w-3 mr-1" />취소
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm whitespace-pre-wrap">{req.content}</p>
+                      )}
+                    </div>
+                    {editingPrayerId !== req.id && (
+                      <div className="flex gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-primary"
+                          onClick={() => { setEditingPrayerId(req.id); setEditingPrayerText(req.content); }}>
+                          <PencilSimple weight="light" className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                          onClick={() => deletePrayerRequest(id, req.id)}>
+                          <Trash weight="light" className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                );
+
+                if (!showAllPrayers) {
+                  const latest = sorted[0]!;
+                  return (
+                    <div className="space-y-3">
+                      {renderPrayerItem(latest, true)}
+                      {total > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setShowAllPrayers(true)}
+                          className="flex items-center gap-1 text-xs text-primary hover:text-primary/70 transition-colors pt-1"
+                        >
+                          <CaretDown weight="bold" className="h-3 w-3" />
+                          전체 {total}건 보기
+                        </button>
+                      )}
+                    </div>
+                  );
+                }
+
+                // 전체 보기: 연도별 그룹
                 const yearGroups = new Map<string, typeof sorted>();
                 for (const req of sorted) {
                   const year = /^\d{4}/.test(req.createdAt)
@@ -419,54 +494,18 @@ export default function MemberDetailPage({
                           <div className="flex-1 h-px bg-border" />
                         </div>
                         <div className="space-y-3">
-                          {reqs.map((req) => (
-                            <div key={req.id} className="flex items-start gap-3 group">
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs text-muted-foreground mb-0.5">
-                                  {/^\d{4}-\d{2}-\d{2}/.test(req.createdAt)
-                                    ? new Date(req.createdAt).toLocaleDateString("ko-KR", { month: "long", day: "numeric" })
-                                    : "날짜 미기재"}
-                                </p>
-                                {editingPrayerId === req.id ? (
-                                  <div className="space-y-1.5">
-                                    <textarea
-                                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring"
-                                      rows={3}
-                                      value={editingPrayerText}
-                                      onChange={(e) => setEditingPrayerText(e.target.value)}
-                                    />
-                                    <div className="flex gap-1.5">
-                                      <Button size="sm" className="h-7 px-2 text-xs" disabled={!editingPrayerText.trim()}
-                                        onClick={() => { updatePrayerRequest(id, req.id, editingPrayerText.trim()); setEditingPrayerId(null); }}>
-                                        <Check weight="bold" className="h-3 w-3 mr-1" />저장
-                                      </Button>
-                                      <Button size="sm" variant="outline" className="h-7 px-2 text-xs"
-                                        onClick={() => setEditingPrayerId(null)}>
-                                        <X weight="bold" className="h-3 w-3 mr-1" />취소
-                                      </Button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <p className="text-sm whitespace-pre-wrap">{req.content}</p>
-                                )}
-                              </div>
-                              {editingPrayerId !== req.id && (
-                                <div className="flex gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-primary"
-                                    onClick={() => { setEditingPrayerId(req.id); setEditingPrayerText(req.content); }}>
-                                    <PencilSimple weight="light" className="h-3.5 w-3.5" />
-                                  </Button>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-                                    onClick={() => deletePrayerRequest(id, req.id)}>
-                                    <Trash weight="light" className="h-3.5 w-3.5" />
-                                  </Button>
-                                </div>
-                              )}
-                            </div>
-                          ))}
+                          {reqs.map((req) => renderPrayerItem(req, false))}
                         </div>
                       </div>
                     ))}
+                    <button
+                      type="button"
+                      onClick={() => setShowAllPrayers(false)}
+                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors pt-1"
+                    >
+                      <CaretUp weight="bold" className="h-3 w-3" />
+                      접기
+                    </button>
                   </div>
                 );
               })()}
@@ -535,61 +574,95 @@ export default function MemberDetailPage({
               )}
               {member.pastoralVisits.length === 0 ? (
                 <p className="text-sm text-muted-foreground">등록된 심방 기록이 없습니다.</p>
-              ) : (
-                <div className="space-y-3">
-                  {[...member.pastoralVisits]
-                    .sort((a, b) => b.visitedAt.localeCompare(a.visitedAt))
-                    .map((visit) => (
-                      <div key={visit.id} className="flex items-start gap-3 group">
-                        <div className="flex-1 min-w-0">
-                          {editingVisitId === visit.id ? (
-                            <div className="space-y-1.5">
-                              <input
-                                type="date"
-                                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                                value={editingVisitDate}
-                                onChange={(e) => setEditingVisitDate(e.target.value)}
-                              />
-                              <textarea
-                                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring"
-                                rows={3}
-                                value={editingVisitText}
-                                onChange={(e) => setEditingVisitText(e.target.value)}
-                              />
-                              <div className="flex gap-1.5">
-                                <Button size="sm" className="h-7 px-2 text-xs" disabled={!editingVisitDate || !editingVisitText.trim()}
-                                  onClick={() => { updatePastoralVisit(id, visit.id, editingVisitDate, editingVisitText.trim()); setEditingVisitId(null); }}>
-                                  <Check weight="bold" className="h-3 w-3 mr-1" />저장
-                                </Button>
-                                <Button size="sm" variant="outline" className="h-7 px-2 text-xs"
-                                  onClick={() => setEditingVisitId(null)}>
-                                  <X weight="bold" className="h-3 w-3 mr-1" />취소
-                                </Button>
-                              </div>
-                            </div>
-                          ) : (
-                            <>
-                              <p className="text-xs text-muted-foreground mb-0.5">{formatDate(visit.visitedAt)}</p>
-                              <p className="text-sm whitespace-pre-wrap">{visit.content}</p>
-                            </>
-                          )}
-                        </div>
-                        {editingVisitId !== visit.id && (
-                          <div className="flex gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-primary"
-                              onClick={() => { setEditingVisitId(visit.id); setEditingVisitDate(visit.visitedAt); setEditingVisitText(visit.content); }}>
-                              <PencilSimple weight="light" className="h-3.5 w-3.5" />
+              ) : (() => {
+                const sortedVisits = [...member.pastoralVisits].sort((a, b) =>
+                  b.visitedAt.localeCompare(a.visitedAt)
+                );
+                const totalVisits = sortedVisits.length;
+
+                const renderVisitItem = (visit: (typeof sortedVisits)[number]) => (
+                  <div key={visit.id} className="flex items-start gap-3 group">
+                    <div className="flex-1 min-w-0">
+                      {editingVisitId === visit.id ? (
+                        <div className="space-y-1.5">
+                          <input
+                            type="date"
+                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                            value={editingVisitDate}
+                            onChange={(e) => setEditingVisitDate(e.target.value)}
+                          />
+                          <textarea
+                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+                            rows={3}
+                            value={editingVisitText}
+                            onChange={(e) => setEditingVisitText(e.target.value)}
+                          />
+                          <div className="flex gap-1.5">
+                            <Button size="sm" className="h-7 px-2 text-xs" disabled={!editingVisitDate || !editingVisitText.trim()}
+                              onClick={() => { updatePastoralVisit(id, visit.id, editingVisitDate, editingVisitText.trim()); setEditingVisitId(null); }}>
+                              <Check weight="bold" className="h-3 w-3 mr-1" />저장
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-                              onClick={() => deletePastoralVisit(id, visit.id)}>
-                              <Trash weight="light" className="h-3.5 w-3.5" />
+                            <Button size="sm" variant="outline" className="h-7 px-2 text-xs"
+                              onClick={() => setEditingVisitId(null)}>
+                              <X weight="bold" className="h-3 w-3 mr-1" />취소
                             </Button>
                           </div>
-                        )}
+                        </div>
+                      ) : (
+                        <>
+                          <p className="text-xs text-muted-foreground mb-0.5">{formatDate(visit.visitedAt)}</p>
+                          <p className="text-sm whitespace-pre-wrap">{visit.content}</p>
+                        </>
+                      )}
+                    </div>
+                    {editingVisitId !== visit.id && (
+                      <div className="flex gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-primary"
+                          onClick={() => { setEditingVisitId(visit.id); setEditingVisitDate(visit.visitedAt); setEditingVisitText(visit.content); }}>
+                          <PencilSimple weight="light" className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                          onClick={() => deletePastoralVisit(id, visit.id)}>
+                          <Trash weight="light" className="h-3.5 w-3.5" />
+                        </Button>
                       </div>
-                    ))}
-                </div>
-              )}
+                    )}
+                  </div>
+                );
+
+                if (!showAllVisits) {
+                  const latest = sortedVisits[0]!;
+                  return (
+                    <div className="space-y-3">
+                      {renderVisitItem(latest)}
+                      {totalVisits > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setShowAllVisits(true)}
+                          className="flex items-center gap-1 text-xs text-primary hover:text-primary/70 transition-colors pt-1"
+                        >
+                          <CaretDown weight="bold" className="h-3 w-3" />
+                          전체 {totalVisits}건 보기
+                        </button>
+                      )}
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-3">
+                    {sortedVisits.map((visit) => renderVisitItem(visit))}
+                    <button
+                      type="button"
+                      onClick={() => setShowAllVisits(false)}
+                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors pt-1"
+                    >
+                      <CaretUp weight="bold" className="h-3 w-3" />
+                      접기
+                    </button>
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
         </div>
