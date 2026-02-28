@@ -247,6 +247,33 @@ export function updatePastoralVisit(memberId: string, visitId: string, visitedAt
   return updated;
 }
 
+export function bulkAddPrayerRequests(
+  entries: { memberId: string; prayers: { content: string; createdAt: string }[] }[],
+): { totalAdded: number } {
+  const now = new Date().toISOString();
+  let totalAdded = 0;
+  members = members.map((m) => {
+    const entry = entries.find((e) => e.memberId === m.id);
+    if (!entry) return m;
+    const existingContents = new Set(m.prayerRequests.map((r) => r.content.trim()));
+    const newRequests = entry.prayers
+      .filter((p) => !existingContents.has(p.content.trim()))
+      .map((p) => ({
+        id: crypto.randomUUID(),
+        content: p.content,
+        createdAt: p.createdAt === "미기재" ? now : p.createdAt,
+      }));
+    if (newRequests.length === 0) return m;
+    totalAdded += newRequests.length;
+    const merged = [...m.prayerRequests, ...newRequests].sort((a, b) =>
+      b.createdAt.localeCompare(a.createdAt),
+    );
+    return { ...m, prayerRequests: merged, updatedAt: now };
+  });
+  notify();
+  return { totalAdded };
+}
+
 export function replaceMembers(newMembers: Member[]): void {
   members = newMembers;
   notify();
