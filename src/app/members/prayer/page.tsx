@@ -77,7 +77,9 @@ export default function PrayerListPage() {
 
         <div className="divide-y">
           {active.map((member, idx) => {
-            const latestPrayer = member.prayerRequests[0];
+            const latestPrayer = [...member.prayerRequests].sort((a, b) =>
+              b.createdAt.localeCompare(a.createdAt)
+            )[0];
             return (
               <div key={member.id} className={`flex gap-4 ${size?.py ?? "py-5"}`}>
                 <span
