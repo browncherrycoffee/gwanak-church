@@ -89,9 +89,12 @@ export default function PrayerListPage() {
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-baseline gap-2 flex-wrap">
-                    <span className={`${size?.nameClass ?? "text-2xl"} font-bold leading-snug`}>
+                    <Link
+                      href={`/members/${member.id}`}
+                      className={`${size?.nameClass ?? "text-2xl"} font-bold leading-snug hover:text-primary transition-colors`}
+                    >
                       {member.name}
-                    </span>
+                    </Link>
                     {member.position && member.position !== "성도" && (
                       <span className={`${size?.prayerClass ?? "text-lg"} text-muted-foreground`}>
                         {member.position}
