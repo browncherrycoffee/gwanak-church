@@ -115,7 +115,7 @@ export default function MemberDetailPage({
 
   return (
     <div className="min-h-screen">
-      <header className="border-b bg-background">
+      <header className="sticky top-0 z-50 border-b bg-background">
         <div className="mx-auto flex h-16 max-w-4xl items-center justify-between px-4">
           <div className="flex items-center gap-3">
             <Link href="/" className="shrink-0">
@@ -543,7 +543,7 @@ export default function MemberDetailPage({
                             </div>
                           ) : (
                             <>
-                              <p className="text-xs text-muted-foreground mb-0.5">{visit.visitedAt}</p>
+                              <p className="text-xs text-muted-foreground mb-0.5">{formatDate(visit.visitedAt)}</p>
                               <p className="text-sm whitespace-pre-wrap">{visit.content}</p>
                             </>
                           )}

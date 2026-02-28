@@ -3,12 +3,11 @@
 import { useState, useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Cross, MagnifyingGlass, Users, UserPlus, User, UploadSimple, TreeStructure, Heart, Cake, Database, ChartBar } from "@phosphor-icons/react";
+import { Cross, MagnifyingGlass, Users, UserPlus, User, UploadSimple, TreeStructure, Heart, Database, ChartBar } from "@phosphor-icons/react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getMembers, subscribe } from "@/lib/member-store";
 import { searchMembers } from "@/lib/search";
-import { getBirthMonthDay, daysUntilBirthday } from "@/lib/utils";
 
 export default function HomePage() {
   const [query, setQuery] = useState("");
@@ -20,25 +19,6 @@ export default function HomePage() {
 
   const nonRemoved = members.filter((m) => m.memberStatus !== "제적");
   const activeCount = nonRemoved.filter((m) => m.memberStatus === "활동").length;
-
-  const today = useMemo(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
-  }, []);
-
-  const upcomingBirthdays = useMemo(
-    () =>
-      nonRemoved
-        .filter((m) => m.birthDate && daysUntilBirthday(m.birthDate, today) <= 7)
-        .sort((a, b) => {
-          const da = a.birthDate ? daysUntilBirthday(a.birthDate, today) : 999;
-          const db = b.birthDate ? daysUntilBirthday(b.birthDate, today) : 999;
-          return da - db;
-        })
-        .slice(0, 3),
-    [nonRemoved, today],
-  );
 
   const suggestions = useMemo(() => {
     if (!query.trim() || query.trim().length < 1) return [];
@@ -136,7 +116,7 @@ export default function HomePage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium">{member.name}</span>
-                      {member.position && (
+                      {member.position && member.position !== "성도" && (
                         <span className="text-xs text-muted-foreground">{member.position}</span>
                       )}
                     </div>
@@ -205,16 +185,6 @@ export default function HomePage() {
             variant="outline"
             className="rounded-full px-6"
           >
-            <Link href="/members/birthday">
-              <Cake weight="light" className="mr-2 h-4 w-4" />
-              생일 목록
-            </Link>
-          </Button>
-          <Button
-            asChild
-            variant="outline"
-            className="rounded-full px-6"
-          >
             <Link href="/members/stats">
               <ChartBar weight="light" className="mr-2 h-4 w-4" />
               통계
@@ -222,48 +192,6 @@ export default function HomePage() {
           </Button>
         </div>
       </div>
-
-      {/* 이번 주 생일 위젯 */}
-      {upcomingBirthdays.length > 0 && (
-        <div className="mt-8 w-full max-w-md rounded-xl border border-primary/20 bg-primary/5 p-4">
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-primary">
-            <Cake weight="fill" className="h-4 w-4" />
-            이번 주 생일
-          </h2>
-          <div className="space-y-2">
-            {upcomingBirthdays.map((m) => {
-              const md = m.birthDate ? getBirthMonthDay(m.birthDate) : null;
-              const days = m.birthDate ? daysUntilBirthday(m.birthDate, today) : null;
-              return (
-                <Link
-                  key={m.id}
-                  href={`/members/${m.id}`}
-                  className="flex items-center gap-3 rounded-md px-2 py-1.5 hover:bg-primary/10 transition-colors"
-                >
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-                    {md?.day}
-                  </span>
-                  <span className="flex-1 text-sm font-medium">{m.name}</span>
-                  {m.position && (
-                    <span className="text-xs text-muted-foreground">{m.position}</span>
-                  )}
-                  <span className="text-xs font-medium text-primary">
-                    {days === 0 ? "오늘" : `D-${days}`}
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-          {upcomingBirthdays.length === 3 && (
-            <Link
-              href="/members/birthday"
-              className="mt-2 block text-center text-xs text-primary hover:underline"
-            >
-              전체 보기
-            </Link>
-          )}
-        </div>
-      )}
 
       {/* 통계 */}
       <div className="mt-12 flex items-center gap-6 sm:gap-8 text-center">

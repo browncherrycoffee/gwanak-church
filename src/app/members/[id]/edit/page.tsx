@@ -38,7 +38,7 @@ export default function EditMemberPage({
 
   return (
     <div className="min-h-screen">
-      <header className="border-b bg-background">
+      <header className="sticky top-0 z-50 border-b bg-background">
         <div className="mx-auto flex h-16 max-w-4xl items-center gap-3 px-4">
           <Link href="/" className="shrink-0">
             <Cross weight="fill" className="h-7 w-7 text-primary" />
