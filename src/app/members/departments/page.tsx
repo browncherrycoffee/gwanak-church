@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getMembers, subscribe } from "@/lib/member-store";
-import { DEPARTMENTS } from "@/lib/constants";
+import { DEPARTMENTS, POSITION_ORDER } from "@/lib/constants";
 
 export default function DepartmentsPage() {
   const members = useSyncExternalStore(subscribe, getMembers, getMembers);
@@ -45,14 +45,23 @@ export default function DepartmentsPage() {
       }
     }
 
+    const sortByPosition = (list: typeof members) =>
+      [...list].sort((a, b) => {
+        const ai = POSITION_ORDER.indexOf(a.position ?? "");
+        const bi = POSITION_ORDER.indexOf(b.position ?? "");
+        const ao = ai === -1 ? 999 : ai;
+        const bo = bi === -1 ? 999 : bi;
+        return ao !== bo ? ao - bo : a.name.localeCompare(b.name, "ko");
+      });
+
     const result: { name: string; members: typeof members }[] = [];
     for (const [name, list] of map) {
       if (list.length > 0) {
-        result.push({ name, members: list });
+        result.push({ name, members: sortByPosition(list) });
       }
     }
     if (noDept.length > 0) {
-      result.push({ name: "미배정", members: noDept });
+      result.push({ name: "미배정", members: sortByPosition(noDept) });
     }
     return result;
   }, [activeMembers]);

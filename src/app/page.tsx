@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Cross, MagnifyingGlass, Users, UserPlus, User, UploadSimple, TreeStructure, Heart, Cake, Database } from "@phosphor-icons/react";
+import { Cross, MagnifyingGlass, Users, UserPlus, User, UploadSimple, TreeStructure, Heart, Cake, Database, ChartBar } from "@phosphor-icons/react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getMembers, subscribe } from "@/lib/member-store";
@@ -210,6 +210,16 @@ export default function HomePage() {
               생일 목록
             </Link>
           </Button>
+          <Button
+            asChild
+            variant="outline"
+            className="rounded-full px-6"
+          >
+            <Link href="/members/stats">
+              <ChartBar weight="light" className="mr-2 h-4 w-4" />
+              통계
+            </Link>
+          </Button>
         </div>
       </div>
 
@@ -269,7 +279,7 @@ export default function HomePage() {
         <div className="h-8 w-px bg-border" />
         <div>
           <p className="text-2xl font-bold text-primary">
-            {new Set(members.map((m) => m.department).filter(Boolean)).size}
+            {new Set(nonRemoved.map((m) => m.department).filter(Boolean)).size}
           </p>
           <p className="text-xs text-muted-foreground">부서</p>
         </div>
@@ -304,6 +314,13 @@ export default function HomePage() {
         >
           <Database weight="light" className="h-4 w-4" />
           백업 / 복원
+        </Link>
+        <Link
+          href="/members/stats"
+          className="flex items-center gap-1.5 hover:text-primary transition-colors"
+        >
+          <ChartBar weight="light" className="h-4 w-4" />
+          교인 통계
         </Link>
       </div>
     </div>
