@@ -141,55 +141,55 @@ export default function HomePage() {
           )}
         </div>
 
-        <div className="mt-6 flex flex-col items-center gap-3">
-          <div className="flex justify-center gap-3 flex-wrap">
+        <div className="mt-6 flex flex-col items-center gap-3 w-full">
+          <div className="grid grid-cols-3 gap-2 w-full sm:flex sm:w-auto sm:justify-center sm:gap-3">
             <Button
               onClick={handleSearch}
-              className="rounded-full px-6"
+              className="rounded-full px-3 sm:px-6"
               disabled={!query.trim()}
             >
-              <MagnifyingGlass weight="light" className="mr-2 h-4 w-4" />
+              <MagnifyingGlass weight="light" className="mr-1.5 h-4 w-4 shrink-0" />
               교적 검색
             </Button>
             <Button
               asChild
               variant="outline"
-              className="rounded-full px-6"
+              className="rounded-full px-3 sm:px-6"
             >
               <Link href="/members">
-                <Users weight="light" className="mr-2 h-4 w-4" />
+                <Users weight="light" className="mr-1.5 h-4 w-4 shrink-0" />
                 전체 목록
               </Link>
             </Button>
             <Button
               asChild
               variant="outline"
-              className="rounded-full px-6"
+              className="rounded-full px-3 sm:px-6"
             >
               <Link href="/members/departments">
-                <TreeStructure weight="light" className="mr-2 h-4 w-4" />
+                <TreeStructure weight="light" className="mr-1.5 h-4 w-4 shrink-0" />
                 부서별
               </Link>
             </Button>
           </div>
-          <div className="flex justify-center gap-3">
+          <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:w-auto sm:justify-center sm:gap-3">
             <Button
               asChild
               variant="outline"
-              className="rounded-full px-6"
+              className="rounded-full px-3 sm:px-6"
             >
               <Link href="/members/prayer">
-                <Heart weight="light" className="mr-2 h-4 w-4" />
+                <Heart weight="light" className="mr-1.5 h-4 w-4 shrink-0" />
                 기도 목록
               </Link>
             </Button>
             <Button
               asChild
               variant="outline"
-              className="rounded-full px-6"
+              className="rounded-full px-3 sm:px-6"
             >
               <Link href="/members/pastoral">
-                <House weight="light" className="mr-2 h-4 w-4" />
+                <House weight="light" className="mr-1.5 h-4 w-4 shrink-0" />
                 심방 목록
               </Link>
             </Button>
