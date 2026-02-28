@@ -138,21 +138,25 @@ export default function DepartmentsPage() {
                         <Link
                           key={m.id}
                           href={`/members/${m.id}`}
-                          className="flex items-center gap-3 rounded-md px-3 py-2 hover:bg-secondary transition-colors"
+                          className="flex items-start gap-3 rounded-md px-3 py-2.5 hover:bg-secondary transition-colors"
                         >
-                          <User weight="light" className="h-4 w-4 text-primary shrink-0" />
-                          <span className="text-sm font-medium">{m.name}</span>
-                          {m.position && (
-                            <Badge variant="secondary" className="text-[10px]">
-                              {m.position}
-                            </Badge>
-                          )}
-                          {m.phone && (
-                            <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
-                              <Phone weight="light" className="h-3 w-3" />
-                              {m.phone}
-                            </span>
-                          )}
+                          <User weight="light" className="mt-0.5 h-4 w-4 text-primary shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-medium">{m.name}</span>
+                              {m.position && (
+                                <Badge variant="secondary" className="text-[10px]">
+                                  {m.position}
+                                </Badge>
+                              )}
+                            </div>
+                            {m.phone && (
+                              <span className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                                <Phone weight="light" className="h-3 w-3 shrink-0" />
+                                {m.phone}
+                              </span>
+                            )}
+                          </div>
                         </Link>
                       ))}
                     </div>

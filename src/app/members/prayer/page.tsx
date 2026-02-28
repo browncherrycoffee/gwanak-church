@@ -45,7 +45,7 @@ export default function PrayerListPage() {
                   key={opt.label}
                   type="button"
                   onClick={() => setSizeIdx(i)}
-                  className={`rounded px-2.5 py-1 text-sm font-medium transition-colors ${
+                  className={`rounded px-3 py-2 text-sm font-medium transition-colors ${
                     sizeIdx === i
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:text-foreground"
@@ -58,7 +58,7 @@ export default function PrayerListPage() {
             <button
               type="button"
               onClick={() => window.print()}
-              className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-secondary transition-colors"
+              className="flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm hover:bg-secondary transition-colors"
             >
               <Printer weight="light" className="h-4 w-4" />
               인쇄

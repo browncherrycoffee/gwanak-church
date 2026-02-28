@@ -96,7 +96,7 @@ export default function HomePage() {
             onKeyDown={handleKeyDown}
             onFocus={() => setShowSuggestions(true)}
             onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-            autoFocus
+            autoFocus={false}
           />
 
           {/* 검색 제안 드롭다운 */}
@@ -184,7 +184,7 @@ export default function HomePage() {
       </div>
 
       {/* 통계 */}
-      <div className="mt-12 flex items-center gap-8 text-center">
+      <div className="mt-12 flex items-center gap-6 sm:gap-8 text-center">
         <div>
           <p className="text-2xl font-bold text-primary">{nonRemoved.length}</p>
           <p className="text-xs text-muted-foreground">전체등록교인</p>
@@ -204,7 +204,7 @@ export default function HomePage() {
       </div>
 
       {/* 하단 바로가기 */}
-      <div className="mt-10 flex gap-6 text-sm text-muted-foreground">
+      <div className="mt-10 flex flex-wrap justify-center gap-5 text-sm text-muted-foreground">
         <Link
           href="/members"
           className="flex items-center gap-1.5 hover:text-primary transition-colors"

@@ -92,11 +92,13 @@ export default function MembersListPage() {
     <div className="min-h-screen">
       {/* 헤더 */}
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-5xl items-center gap-3 px-4">
+        {/* 상단 행: 로고 + 액션 버튼 */}
+        <div className="mx-auto flex h-14 max-w-5xl items-center gap-2 px-4">
           <Link href="/" className="shrink-0">
             <Cross weight="fill" className="h-7 w-7 text-primary" />
           </Link>
-          <div className="relative flex-1 max-w-2xl">
+          {/* 데스크탑: 검색창 인라인 */}
+          <div className="relative hidden sm:flex flex-1 max-w-2xl">
             <MagnifyingGlass
               weight="light"
               className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
@@ -109,34 +111,53 @@ export default function MembersListPage() {
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowFilters(!showFilters)}
-            className={showFilters || hasFilters ? "text-primary" : ""}
-          >
-            <FunnelSimple weight="light" className="h-4 w-4 sm:mr-1.5" />
-            <span className="hidden sm:inline">필터</span>
-            {hasFilters && (
-              <span className="ml-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-white">
-                {[positionFilter, departmentFilter, activeFilter].filter(Boolean).length}
-              </span>
-            )}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => exportMembersCsv(filtered)}
-            title="CSV 내보내기"
-          >
-            <DownloadSimple weight="light" className="h-4 w-4" />
-          </Button>
-          <Button asChild size="sm" className="shrink-0">
-            <Link href="/members/new">
-              <UserPlus weight="light" className="h-4 w-4 sm:mr-1.5" />
-              <span className="hidden sm:inline">등록</span>
-            </Link>
-          </Button>
+          <div className="ml-auto flex items-center gap-1 sm:ml-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowFilters(!showFilters)}
+              className={`h-10 w-10 ${showFilters || hasFilters ? "text-primary" : ""}`}
+              title="필터"
+            >
+              <FunnelSimple weight="light" className="h-5 w-5" />
+              {hasFilters && (
+                <span className="absolute top-1.5 right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary text-[9px] text-white">
+                  {[positionFilter, departmentFilter, activeFilter].filter(Boolean).length}
+                </span>
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => exportMembersCsv(filtered)}
+              title="CSV 내보내기"
+              className="h-10 w-10"
+            >
+              <DownloadSimple weight="light" className="h-5 w-5" />
+            </Button>
+            <Button asChild size="sm" className="h-9 px-3">
+              <Link href="/members/new">
+                <UserPlus weight="light" className="h-4 w-4 sm:mr-1.5" />
+                <span className="hidden sm:inline">등록</span>
+              </Link>
+            </Button>
+          </div>
+        </div>
+        {/* 모바일: 검색창 별도 행 */}
+        <div className="sm:hidden px-4 pb-3">
+          <div className="relative">
+            <MagnifyingGlass
+              weight="light"
+              className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+            />
+            <Input
+              type="text"
+              placeholder="교인 검색..."
+              className="h-10 rounded-full pl-10 pr-4"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
         </div>
 
         {/* 필터 영역 */}
@@ -144,7 +165,7 @@ export default function MembersListPage() {
           <div className="border-t bg-muted/30 px-4 py-3">
             <div className="mx-auto flex max-w-5xl flex-wrap gap-3">
               <select
-                className="rounded-md border bg-background px-3 py-1.5 text-sm"
+                className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm sm:w-auto"
                 value={positionFilter}
                 onChange={(e) => setPositionFilter(e.target.value)}
               >
@@ -154,7 +175,7 @@ export default function MembersListPage() {
                 ))}
               </select>
               <select
-                className="rounded-md border bg-background px-3 py-1.5 text-sm"
+                className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm sm:w-auto"
                 value={departmentFilter}
                 onChange={(e) => setDepartmentFilter(e.target.value)}
               >
@@ -164,7 +185,7 @@ export default function MembersListPage() {
                 ))}
               </select>
               <select
-                className="rounded-md border bg-background px-3 py-1.5 text-sm"
+                className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm sm:w-auto"
                 value={activeFilter}
                 onChange={(e) => setActiveFilter(e.target.value)}
               >
@@ -193,7 +214,7 @@ export default function MembersListPage() {
 
       {/* 목록 */}
       <main className="mx-auto max-w-5xl px-4 py-6">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <h1 className="text-lg font-bold">전체등록교인</h1>
             <Badge variant="secondary">{filtered.length}명</Badge>

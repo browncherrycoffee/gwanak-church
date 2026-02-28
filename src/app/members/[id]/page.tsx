@@ -120,17 +120,17 @@ export default function MemberDetailPage({
             </Button>
           </div>
           <div className="flex gap-1.5 sm:gap-2">
-            <Button variant="outline" size="sm" onClick={() => window.print()} className="no-print">
+            <Button variant="outline" size="sm" onClick={() => window.print()} className="no-print h-9 px-3">
               <Printer weight="light" className="h-4 w-4 sm:mr-1.5" />
               <span className="hidden sm:inline">인쇄</span>
             </Button>
-            <Button asChild variant="outline" size="sm">
+            <Button asChild variant="outline" size="sm" className="h-9 px-3">
               <Link href={`/members/${id}/edit`}>
                 <PencilSimple weight="light" className="h-4 w-4 sm:mr-1.5" />
                 <span className="hidden sm:inline">수정</span>
               </Link>
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setShowDeleteDialog(true)} className="text-destructive hover:text-destructive">
+            <Button variant="outline" size="sm" onClick={() => setShowDeleteDialog(true)} className="h-9 px-3 text-destructive hover:text-destructive">
               <Trash weight="light" className="h-4 w-4 sm:mr-1.5" />
               <span className="hidden sm:inline">삭제</span>
             </Button>
@@ -157,7 +157,7 @@ export default function MemberDetailPage({
               )}
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-2xl font-bold">{member.name}</h1>
                 {member.position && (
                   <Badge className="bg-primary">{member.position}</Badge>
@@ -340,7 +340,7 @@ export default function MemberDetailPage({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 px-2 text-xs"
+                  className="h-9 px-3 text-sm"
                   onClick={() => { setShowPrayerForm((v) => !v); setPrayerInput(""); }}
                 >
                   <Plus weight="bold" className="h-3.5 w-3.5 mr-1" />
@@ -360,14 +360,14 @@ export default function MemberDetailPage({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-7 text-xs"
+                      className="h-9 text-sm"
                       onClick={() => { setShowPrayerForm(false); setPrayerInput(""); }}
                     >
                       취소
                     </Button>
                     <Button
                       size="sm"
-                      className="h-7 text-xs"
+                      className="h-9 text-sm"
                       disabled={!prayerInput.trim()}
                       onClick={() => {
                         if (prayerInput.trim()) {
@@ -399,7 +399,7 @@ export default function MemberDetailPage({
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
+                          className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                           onClick={() => deletePrayerRequest(id, req.id)}
                         >
                           <Trash weight="light" className="h-3.5 w-3.5" />
@@ -422,7 +422,7 @@ export default function MemberDetailPage({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 px-2 text-xs"
+                  className="h-9 px-3 text-sm"
                   onClick={() => { setShowVisitForm((v) => !v); setVisitDate(""); setVisitContent(""); }}
                 >
                   <Plus weight="bold" className="h-3.5 w-3.5 mr-1" />
@@ -448,14 +448,14 @@ export default function MemberDetailPage({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-7 text-xs"
+                      className="h-9 text-sm"
                       onClick={() => { setShowVisitForm(false); setVisitDate(""); setVisitContent(""); }}
                     >
                       취소
                     </Button>
                     <Button
                       size="sm"
-                      className="h-7 text-xs"
+                      className="h-9 text-sm"
                       disabled={!visitDate || !visitContent.trim()}
                       onClick={() => {
                         if (visitDate && visitContent.trim()) {
@@ -488,7 +488,7 @@ export default function MemberDetailPage({
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
+                          className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                           onClick={() => deletePastoralVisit(id, visit.id)}
                         >
                           <Trash weight="light" className="h-3.5 w-3.5" />
