@@ -21,6 +21,8 @@ import {
   Plus,
   Heart,
   House,
+  Check,
+  X,
 } from "@phosphor-icons/react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -35,8 +37,10 @@ import {
   subscribe,
   addPrayerRequest,
   deletePrayerRequest,
+  updatePrayerRequest,
   addPastoralVisit,
   deletePastoralVisit,
+  updatePastoralVisit,
 } from "@/lib/member-store";
 import { formatDate } from "@/lib/utils";
 
@@ -51,9 +55,14 @@ export default function MemberDetailPage({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showPrayerForm, setShowPrayerForm] = useState(false);
   const [prayerInput, setPrayerInput] = useState("");
+  const [editingPrayerId, setEditingPrayerId] = useState<string | null>(null);
+  const [editingPrayerText, setEditingPrayerText] = useState("");
   const [showVisitForm, setShowVisitForm] = useState(false);
   const [visitDate, setVisitDate] = useState("");
   const [visitContent, setVisitContent] = useState("");
+  const [editingVisitId, setEditingVisitId] = useState<string | null>(null);
+  const [editingVisitDate, setEditingVisitDate] = useState("");
+  const [editingVisitText, setEditingVisitText] = useState("");
 
   // subscribe to store changes
   useSyncExternalStore(subscribe, getMembers, getMembers);
@@ -176,19 +185,21 @@ export default function MemberDetailPage({
               )}
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => toggleMemberStatus(id)}
-            className={member.memberStatus === "활동" ? "text-primary" : "text-muted-foreground"}
-          >
-            {member.memberStatus === "활동" ? (
-              <ToggleRight weight="fill" className="mr-1.5 h-5 w-5" />
-            ) : (
-              <ToggleLeft weight="light" className="mr-1.5 h-5 w-5" />
-            )}
-            {member.memberStatus}
-          </Button>
+          {member.memberStatus !== "제적" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleMemberStatus(id)}
+              className={member.memberStatus === "활동" ? "text-primary" : "text-muted-foreground"}
+            >
+              {member.memberStatus === "활동" ? (
+                <ToggleRight weight="fill" className="mr-1.5 h-5 w-5" />
+              ) : (
+                <ToggleLeft weight="light" className="mr-1.5 h-5 w-5" />
+              )}
+              {member.memberStatus}
+            </Button>
+          )}
         </div>
 
         <div className="space-y-6">
@@ -394,16 +405,41 @@ export default function MemberDetailPage({
                           <p className="text-xs text-muted-foreground mb-0.5">
                             {new Date(req.createdAt).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })}
                           </p>
-                          <p className="text-sm whitespace-pre-wrap">{req.content}</p>
+                          {editingPrayerId === req.id ? (
+                            <div className="space-y-1.5">
+                              <textarea
+                                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+                                rows={3}
+                                value={editingPrayerText}
+                                onChange={(e) => setEditingPrayerText(e.target.value)}
+                              />
+                              <div className="flex gap-1.5">
+                                <Button size="sm" className="h-7 px-2 text-xs" disabled={!editingPrayerText.trim()}
+                                  onClick={() => { updatePrayerRequest(id, req.id, editingPrayerText.trim()); setEditingPrayerId(null); }}>
+                                  <Check weight="bold" className="h-3 w-3 mr-1" />저장
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-7 px-2 text-xs"
+                                  onClick={() => setEditingPrayerId(null)}>
+                                  <X weight="bold" className="h-3 w-3 mr-1" />취소
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-sm whitespace-pre-wrap">{req.content}</p>
+                          )}
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
-                          onClick={() => deletePrayerRequest(id, req.id)}
-                        >
-                          <Trash weight="light" className="h-3.5 w-3.5" />
-                        </Button>
+                        {editingPrayerId !== req.id && (
+                          <div className="flex gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-primary"
+                              onClick={() => { setEditingPrayerId(req.id); setEditingPrayerText(req.content); }}>
+                              <PencilSimple weight="light" className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                              onClick={() => deletePrayerRequest(id, req.id)}>
+                              <Trash weight="light" className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     ))}
                 </div>
@@ -480,19 +516,50 @@ export default function MemberDetailPage({
                     .map((visit) => (
                       <div key={visit.id} className="flex items-start gap-3 group">
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs text-muted-foreground mb-0.5">
-                            {visit.visitedAt}
-                          </p>
-                          <p className="text-sm whitespace-pre-wrap">{visit.content}</p>
+                          {editingVisitId === visit.id ? (
+                            <div className="space-y-1.5">
+                              <input
+                                type="date"
+                                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                                value={editingVisitDate}
+                                onChange={(e) => setEditingVisitDate(e.target.value)}
+                              />
+                              <textarea
+                                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+                                rows={3}
+                                value={editingVisitText}
+                                onChange={(e) => setEditingVisitText(e.target.value)}
+                              />
+                              <div className="flex gap-1.5">
+                                <Button size="sm" className="h-7 px-2 text-xs" disabled={!editingVisitDate || !editingVisitText.trim()}
+                                  onClick={() => { updatePastoralVisit(id, visit.id, editingVisitDate, editingVisitText.trim()); setEditingVisitId(null); }}>
+                                  <Check weight="bold" className="h-3 w-3 mr-1" />저장
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-7 px-2 text-xs"
+                                  onClick={() => setEditingVisitId(null)}>
+                                  <X weight="bold" className="h-3 w-3 mr-1" />취소
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <p className="text-xs text-muted-foreground mb-0.5">{visit.visitedAt}</p>
+                              <p className="text-sm whitespace-pre-wrap">{visit.content}</p>
+                            </>
+                          )}
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
-                          onClick={() => deletePastoralVisit(id, visit.id)}
-                        >
-                          <Trash weight="light" className="h-3.5 w-3.5" />
-                        </Button>
+                        {editingVisitId !== visit.id && (
+                          <div className="flex gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-primary"
+                              onClick={() => { setEditingVisitId(visit.id); setEditingVisitDate(visit.visitedAt); setEditingVisitText(visit.content); }}>
+                              <PencilSimple weight="light" className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                              onClick={() => deletePastoralVisit(id, visit.id)}>
+                              <Trash weight="light" className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     ))}
                 </div>

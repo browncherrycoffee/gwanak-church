@@ -13,6 +13,11 @@ export const POSITIONS = [
   "성도",
 ] as const;
 
+// 직분 정렬 순서 (목록/통계에서 사용)
+export const POSITION_ORDER: string[] = [
+  "담임목사", "목사", "강도사", "전도사", "장로", "집사", "성도",
+];
+
 export const DEPARTMENTS = [
   "제1남전도회",
   "제1여전도회",

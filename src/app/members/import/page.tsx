@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useSyncExternalStore } from "react";
 import Link from "next/link";
 import {
   Cross,
@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { addMember } from "@/lib/member-store";
+import { addMember, getMembers, subscribe } from "@/lib/member-store";
 import { parseCsvImport } from "@/lib/import";
 import type { MemberFormData } from "@/types";
 
@@ -21,12 +21,13 @@ export default function ImportMembersPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<MemberFormData[] | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
+  const [duplicates, setDuplicates] = useState<string[]>([]);
   const [imported, setImported] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const members = useSyncExternalStore(subscribe, getMembers, getMembers);
 
+  const processFile = (file: File) => {
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target?.result as string;
@@ -34,8 +35,45 @@ export default function ImportMembersPage() {
       setPreview(result.members);
       setErrors(result.errors);
       setImported(false);
+
+      // 중복 이름 검사
+      const existingNames = new Set(members.map((m) => m.name));
+      const dups = result.members
+        .filter((m) => existingNames.has(m.name))
+        .map((m) => m.name);
+      setDuplicates(dups);
     };
     reader.readAsText(file, "utf-8");
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    processFile(file);
+    e.target.value = "";
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    if (!file.name.endsWith(".csv") && file.type !== "text/csv") {
+      setErrors(["CSV 파일만 업로드할 수 있습니다."]);
+      setPreview(null);
+      return;
+    }
+    processFile(file);
   };
 
   const handleImport = () => {
@@ -81,7 +119,7 @@ export default function ImportMembersPage() {
           </CardContent>
         </Card>
 
-        {/* 파일 업로드 */}
+        {/* 파일 업로드 (클릭 + 드래그앤드롭) */}
         <Card>
           <CardContent className="p-5">
             <input
@@ -94,20 +132,56 @@ export default function ImportMembersPage() {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="flex w-full flex-col items-center gap-3 rounded-lg border-2 border-dashed border-border p-8 hover:border-primary hover:bg-secondary/50 transition-colors cursor-pointer"
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`flex w-full flex-col items-center gap-3 rounded-lg border-2 border-dashed p-8 transition-colors cursor-pointer ${
+                isDragOver
+                  ? "border-primary bg-primary/5"
+                  : "border-border hover:border-primary hover:bg-secondary/50"
+              }`}
             >
-              <UploadSimple weight="light" className="h-10 w-10 text-muted-foreground" />
+              <UploadSimple
+                weight="light"
+                className={`h-10 w-10 transition-colors ${isDragOver ? "text-primary" : "text-muted-foreground"}`}
+              />
               <div className="text-center">
-                <p className="text-sm font-medium">CSV 파일을 선택하세요</p>
+                <p className="text-sm font-medium">
+                  {isDragOver ? "여기에 파일을 놓으세요" : "CSV 파일을 선택하세요"}
+                </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  또는 여기에 파일을 드래그하세요
+                  또는 파일을 드래그하여 업로드
                 </p>
               </div>
             </button>
           </CardContent>
         </Card>
 
-        {/* 에러 */}
+        {/* 중복 경고 */}
+        {duplicates.length > 0 && !imported && (
+          <Card>
+            <CardContent className="p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <Warning weight="light" className="h-4 w-4 text-amber-600" />
+                <h2 className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+                  이름 중복 ({duplicates.length}명)
+                </h2>
+              </div>
+              <p className="text-xs text-muted-foreground mb-2">
+                아래 교인은 이미 등록되어 있습니다. 가져오기 시 중복으로 추가됩니다.
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {duplicates.map((name) => (
+                  <Badge key={name} variant="outline" className="text-xs border-amber-300 text-amber-700 dark:text-amber-400">
+                    {name}
+                  </Badge>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 파싱 에러 */}
         {errors.length > 0 && (
           <Card>
             <CardContent className="p-5">
@@ -135,6 +209,11 @@ export default function ImportMembersPage() {
                   <FileText weight="light" className="h-4 w-4 text-primary" />
                   <h2 className="text-sm font-semibold">
                     가져올 교인: {preview.length}명
+                    {duplicates.length > 0 && (
+                      <span className="ml-2 text-xs font-normal text-amber-600">
+                        (중복 {duplicates.length}명 포함)
+                      </span>
+                    )}
                   </h2>
                 </div>
                 <Button onClick={handleImport} size="sm">
@@ -154,8 +233,16 @@ export default function ImportMembersPage() {
                   </thead>
                   <tbody>
                     {preview.slice(0, 20).map((m, i) => (
-                      <tr key={`${m.name}-${i}`} className="border-b last:border-0">
-                        <td className="py-2 pr-4 font-medium">{m.name}</td>
+                      <tr
+                        key={`${m.name}-${i}`}
+                        className={`border-b last:border-0 ${duplicates.includes(m.name) ? "bg-amber-50 dark:bg-amber-950/20" : ""}`}
+                      >
+                        <td className="py-2 pr-4 font-medium">
+                          {m.name}
+                          {duplicates.includes(m.name) && (
+                            <span className="ml-1.5 text-[10px] text-amber-600">중복</span>
+                          )}
+                        </td>
                         <td className="py-2 pr-4 text-muted-foreground">{m.phone || "-"}</td>
                         <td className="py-2 pr-4 text-muted-foreground">{m.position || "-"}</td>
                         <td className="py-2 pr-4 text-muted-foreground">{m.department || "-"}</td>

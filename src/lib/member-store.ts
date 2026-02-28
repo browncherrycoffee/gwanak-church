@@ -211,6 +211,42 @@ export function deletePastoralVisit(memberId: string, visitId: string): Member |
   return updated;
 }
 
+export function updatePrayerRequest(memberId: string, requestId: string, content: string): Member | null {
+  const index = members.findIndex((m) => m.id === memberId);
+  if (index === -1) return null;
+  const existing = members[index];
+  if (!existing) return null;
+
+  const updated: Member = {
+    ...existing,
+    prayerRequests: existing.prayerRequests.map((r) =>
+      r.id === requestId ? { ...r, content } : r,
+    ),
+    updatedAt: new Date().toISOString(),
+  };
+  members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
+  notify();
+  return updated;
+}
+
+export function updatePastoralVisit(memberId: string, visitId: string, visitedAt: string, content: string): Member | null {
+  const index = members.findIndex((m) => m.id === memberId);
+  if (index === -1) return null;
+  const existing = members[index];
+  if (!existing) return null;
+
+  const updated: Member = {
+    ...existing,
+    pastoralVisits: existing.pastoralVisits.map((v) =>
+      v.id === visitId ? { ...v, visitedAt, content } : v,
+    ),
+    updatedAt: new Date().toISOString(),
+  };
+  members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
+  notify();
+  return updated;
+}
+
 export function replaceMembers(newMembers: Member[]): void {
   members = newMembers;
   notify();

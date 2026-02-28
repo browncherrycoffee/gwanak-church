@@ -17,7 +17,7 @@ import { MemberCard } from "@/components/members/member-card";
 import { exportMembersCsv } from "@/lib/export";
 import { searchMembers } from "@/lib/search";
 import { getMembers, subscribe } from "@/lib/member-store";
-import { POSITIONS, DEPARTMENTS } from "@/lib/constants";
+import { POSITIONS, DEPARTMENTS, POSITION_ORDER } from "@/lib/constants";
 import type { Member } from "@/types";
 
 type SortKey = "name" | "position" | "registrationDate" | "department";
@@ -29,9 +29,6 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "registrationDate", label: "등록일순" },
 ];
 
-const POSITION_ORDER = [
-  "담임목사", "교수목사", "강도사", "전도사", "장로", "집사", "성도", "청년", "학생",
-];
 
 function sortMembers(members: Member[], key: SortKey): Member[] {
   return [...members].sort((a, b) => {
