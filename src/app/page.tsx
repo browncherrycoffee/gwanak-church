@@ -141,65 +141,59 @@ export default function HomePage() {
           )}
         </div>
 
-        <div className="mt-6 flex justify-center gap-3 flex-wrap">
-          <Button
-            onClick={handleSearch}
-            className="rounded-full px-6"
-            disabled={!query.trim()}
-          >
-            <MagnifyingGlass weight="light" className="mr-2 h-4 w-4" />
-            교적 검색
-          </Button>
-          <Button
-            asChild
-            variant="outline"
-            className="rounded-full px-6"
-          >
-            <Link href="/members">
-              <Users weight="light" className="mr-2 h-4 w-4" />
-              전체 목록
-            </Link>
-          </Button>
-          <Button
-            asChild
-            variant="outline"
-            className="rounded-full px-6"
-          >
-            <Link href="/members/departments">
-              <TreeStructure weight="light" className="mr-2 h-4 w-4" />
-              부서별
-            </Link>
-          </Button>
-          <Button
-            asChild
-            variant="outline"
-            className="rounded-full px-6"
-          >
-            <Link href="/members/prayer">
-              <Heart weight="light" className="mr-2 h-4 w-4" />
-              기도 목록
-            </Link>
-          </Button>
-          <Button
-            asChild
-            variant="outline"
-            className="rounded-full px-6"
-          >
-            <Link href="/members/pastoral">
-              <House weight="light" className="mr-2 h-4 w-4" />
-              심방 목록
-            </Link>
-          </Button>
-          <Button
-            asChild
-            variant="outline"
-            className="rounded-full px-6"
-          >
-            <Link href="/members/stats">
-              <ChartBar weight="light" className="mr-2 h-4 w-4" />
-              통계
-            </Link>
-          </Button>
+        <div className="mt-6 flex flex-col items-center gap-3">
+          <div className="flex justify-center gap-3 flex-wrap">
+            <Button
+              onClick={handleSearch}
+              className="rounded-full px-6"
+              disabled={!query.trim()}
+            >
+              <MagnifyingGlass weight="light" className="mr-2 h-4 w-4" />
+              교적 검색
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              className="rounded-full px-6"
+            >
+              <Link href="/members">
+                <Users weight="light" className="mr-2 h-4 w-4" />
+                전체 목록
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              className="rounded-full px-6"
+            >
+              <Link href="/members/departments">
+                <TreeStructure weight="light" className="mr-2 h-4 w-4" />
+                부서별
+              </Link>
+            </Button>
+          </div>
+          <div className="flex justify-center gap-3">
+            <Button
+              asChild
+              variant="outline"
+              className="rounded-full px-6"
+            >
+              <Link href="/members/prayer">
+                <Heart weight="light" className="mr-2 h-4 w-4" />
+                기도 목록
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              className="rounded-full px-6"
+            >
+              <Link href="/members/pastoral">
+                <House weight="light" className="mr-2 h-4 w-4" />
+                심방 목록
+              </Link>
+            </Button>
+          </div>
         </div>
       </div>
 
