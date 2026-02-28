@@ -40,7 +40,13 @@ function PrayerModal({ member, size, onClose }: { member: Member; size: SizeOpti
       >
         <div className="flex items-center justify-between px-5 py-4 border-b shrink-0">
           <div>
-            <span className="font-bold text-lg">{member.name}</span>
+            <Link
+              href={`/members/${member.id}`}
+              className="font-bold text-lg hover:text-primary transition-colors"
+              onClick={onClose}
+            >
+              {member.name}
+            </Link>
             {member.position && member.position !== "성도" && (
               <span className="ml-2 text-sm text-muted-foreground">{member.position}</span>
             )}
