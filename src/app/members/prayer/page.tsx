@@ -12,7 +12,9 @@ const SIZE_OPTIONS = [
   { label: "특대", nameClass: "text-3xl", prayerClass: "text-xl", numClass: "text-xl", py: "py-6" },
 ];
 
-function PrayerModal({ member, onClose }: { member: Member; onClose: () => void }) {
+type SizeOption = (typeof SIZE_OPTIONS)[number];
+
+function PrayerModal({ member, size, onClose }: { member: Member; size: SizeOption; onClose: () => void }) {
   const sorted = [...member.prayerRequests].sort((a, b) =>
     b.createdAt.localeCompare(a.createdAt)
   );
@@ -67,8 +69,8 @@ function PrayerModal({ member, onClose }: { member: Member; onClose: () => void 
                 </div>
                 <div className="space-y-3">
                   {reqs.map((req) => (
-                    <div key={req.id} className="text-sm leading-relaxed">
-                      <p className="text-foreground/80">{req.content}</p>
+                    <div key={req.id} className="leading-relaxed">
+                      <p className={`${size.prayerClass} text-foreground/80`}>{req.content}</p>
                       {/^\d{4}-\d{2}-\d{2}/.test(req.createdAt) && (
                         <p className="text-xs text-muted-foreground/50 mt-0.5">
                           {req.createdAt.substring(0, 10)}
@@ -213,8 +215,8 @@ export default function PrayerListPage() {
         }
       `}</style>
 
-      {selectedMember && (
-        <PrayerModal member={selectedMember} onClose={() => setSelectedMemberId(null)} />
+      {selectedMember && size && (
+        <PrayerModal member={selectedMember} size={size} onClose={() => setSelectedMemberId(null)} />
       )}
     </div>
   );
