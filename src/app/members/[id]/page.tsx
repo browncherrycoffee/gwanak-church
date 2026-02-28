@@ -395,55 +395,81 @@ export default function MemberDetailPage({
               )}
               {member.prayerRequests.length === 0 ? (
                 <p className="text-sm text-muted-foreground">등록된 기도제목이 없습니다.</p>
-              ) : (
-                <div className="space-y-3">
-                  {[...member.prayerRequests]
-                    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-                    .map((req) => (
-                      <div key={req.id} className="flex items-start gap-3 group">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs text-muted-foreground mb-0.5">
-                            {new Date(req.createdAt).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })}
-                          </p>
-                          {editingPrayerId === req.id ? (
-                            <div className="space-y-1.5">
-                              <textarea
-                                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring"
-                                rows={3}
-                                value={editingPrayerText}
-                                onChange={(e) => setEditingPrayerText(e.target.value)}
-                              />
-                              <div className="flex gap-1.5">
-                                <Button size="sm" className="h-7 px-2 text-xs" disabled={!editingPrayerText.trim()}
-                                  onClick={() => { updatePrayerRequest(id, req.id, editingPrayerText.trim()); setEditingPrayerId(null); }}>
-                                  <Check weight="bold" className="h-3 w-3 mr-1" />저장
-                                </Button>
-                                <Button size="sm" variant="outline" className="h-7 px-2 text-xs"
-                                  onClick={() => setEditingPrayerId(null)}>
-                                  <X weight="bold" className="h-3 w-3 mr-1" />취소
-                                </Button>
-                              </div>
-                            </div>
-                          ) : (
-                            <p className="text-sm whitespace-pre-wrap">{req.content}</p>
-                          )}
+              ) : (() => {
+                // 연도별 그룹화 (최신순)
+                const sorted = [...member.prayerRequests].sort((a, b) =>
+                  b.createdAt.localeCompare(a.createdAt)
+                );
+                const yearGroups = new Map<string, typeof sorted>();
+                for (const req of sorted) {
+                  const year = /^\d{4}/.test(req.createdAt)
+                    ? `${req.createdAt.substring(0, 4)}년`
+                    : "날짜 미기재";
+                  const existing = yearGroups.get(year);
+                  if (existing) existing.push(req);
+                  else yearGroups.set(year, [req]);
+                }
+                return (
+                  <div className="space-y-6">
+                    {[...yearGroups.entries()].map(([year, reqs]) => (
+                      <div key={year}>
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="text-xs font-bold text-primary">{year}</span>
+                          <Badge variant="secondary" className="text-[10px] px-1.5">{reqs.length}건</Badge>
+                          <div className="flex-1 h-px bg-border" />
                         </div>
-                        {editingPrayerId !== req.id && (
-                          <div className="flex gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-primary"
-                              onClick={() => { setEditingPrayerId(req.id); setEditingPrayerText(req.content); }}>
-                              <PencilSimple weight="light" className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-                              onClick={() => deletePrayerRequest(id, req.id)}>
-                              <Trash weight="light" className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        )}
+                        <div className="space-y-3">
+                          {reqs.map((req) => (
+                            <div key={req.id} className="flex items-start gap-3 group">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs text-muted-foreground mb-0.5">
+                                  {/^\d{4}-\d{2}-\d{2}/.test(req.createdAt)
+                                    ? new Date(req.createdAt).toLocaleDateString("ko-KR", { month: "long", day: "numeric" })
+                                    : "날짜 미기재"}
+                                </p>
+                                {editingPrayerId === req.id ? (
+                                  <div className="space-y-1.5">
+                                    <textarea
+                                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+                                      rows={3}
+                                      value={editingPrayerText}
+                                      onChange={(e) => setEditingPrayerText(e.target.value)}
+                                    />
+                                    <div className="flex gap-1.5">
+                                      <Button size="sm" className="h-7 px-2 text-xs" disabled={!editingPrayerText.trim()}
+                                        onClick={() => { updatePrayerRequest(id, req.id, editingPrayerText.trim()); setEditingPrayerId(null); }}>
+                                        <Check weight="bold" className="h-3 w-3 mr-1" />저장
+                                      </Button>
+                                      <Button size="sm" variant="outline" className="h-7 px-2 text-xs"
+                                        onClick={() => setEditingPrayerId(null)}>
+                                        <X weight="bold" className="h-3 w-3 mr-1" />취소
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <p className="text-sm whitespace-pre-wrap">{req.content}</p>
+                                )}
+                              </div>
+                              {editingPrayerId !== req.id && (
+                                <div className="flex gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-primary"
+                                    onClick={() => { setEditingPrayerId(req.id); setEditingPrayerText(req.content); }}>
+                                    <PencilSimple weight="light" className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                                    onClick={() => deletePrayerRequest(id, req.id)}>
+                                    <Trash weight="light" className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     ))}
-                </div>
-              )}
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
 
