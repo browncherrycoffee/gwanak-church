@@ -211,6 +211,11 @@ export function deletePastoralVisit(memberId: string, visitId: string): Member |
   return updated;
 }
 
+export function replaceMembers(newMembers: Member[]): void {
+  members = newMembers;
+  notify();
+}
+
 export function subscribe(listener: () => void) {
   listeners = [...listeners, listener];
   return () => {

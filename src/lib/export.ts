@@ -1,5 +1,23 @@
 import type { Member } from "@/types";
 
+export function exportMembersJson(members: Member[]): void {
+  const payload = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    count: members.length,
+    members,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: "application/json;charset=utf-8;",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `관악교회_교적부_${new Date().toISOString().slice(0, 10)}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 const CSV_HEADERS = [
   "이름",
   "연락처",
