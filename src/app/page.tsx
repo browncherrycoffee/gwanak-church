@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Cross, MagnifyingGlass, Users, UserPlus, User, UploadSimple, TreeStructure, Heart, Database, ChartBar } from "@phosphor-icons/react";
+import { Cross, MagnifyingGlass, Users, UserPlus, User, UploadSimple, TreeStructure, Heart, House, Database, ChartBar } from "@phosphor-icons/react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getMembers, subscribe } from "@/lib/member-store";
@@ -178,6 +178,16 @@ export default function HomePage() {
             <Link href="/members/prayer">
               <Heart weight="light" className="mr-2 h-4 w-4" />
               기도 목록
+            </Link>
+          </Button>
+          <Button
+            asChild
+            variant="outline"
+            className="rounded-full px-6"
+          >
+            <Link href="/members/pastoral">
+              <House weight="light" className="mr-2 h-4 w-4" />
+              심방 목록
             </Link>
           </Button>
           <Button
