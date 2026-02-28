@@ -62,8 +62,48 @@ function saveToStorage(data: Member[]) {
 let members: Member[] = loadFromStorage();
 let listeners: Array<() => void> = [];
 
+// 자동 서버 동기화 (3초 debounce)
+let syncTimer: ReturnType<typeof setTimeout> | null = null;
+function scheduleSync() {
+  if (typeof window === "undefined") return;
+  if (syncTimer) clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => {
+    fetch("/api/members", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(members),
+    }).catch(() => {});
+  }, 3000);
+}
+
+// 앱 시작 시 서버에서 최신 데이터 불러오기
+export async function initFromServer(): Promise<void> {
+  if (typeof window === "undefined") return;
+  try {
+    const res = await fetch("/api/members");
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data?.members?.length) return;
+
+    const serverTime = new Date(data.exportedAt).getTime();
+    const localModified = parseInt(localStorage.getItem("gwanak-last-modified") ?? "0");
+
+    // 서버가 더 최신이거나 로컬 수정 이력이 없으면 서버 데이터 사용
+    if (serverTime > localModified) {
+      members = data.members;
+      saveToStorage(members);
+      localStorage.setItem("gwanak-last-modified", String(serverTime));
+      for (const listener of listeners) listener();
+    }
+  } catch {
+    // 서버 연결 실패 시 localStorage 유지
+  }
+}
+
 function notify() {
   saveToStorage(members);
+  localStorage.setItem("gwanak-last-modified", String(Date.now()));
+  scheduleSync();
   for (const listener of listeners) {
     listener();
   }
