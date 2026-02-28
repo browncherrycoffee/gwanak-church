@@ -208,9 +208,13 @@ export default function PastoralListPage() {
                       )}
                     </button>
                   ) : (
-                    <p className={`${size?.contentClass ?? "text-lg"} mt-1.5 text-muted-foreground/40 italic`}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedMemberId(member.id)}
+                      className={`${size?.contentClass ?? "text-lg"} mt-1.5 text-muted-foreground/40 italic hover:text-muted-foreground transition-colors cursor-pointer`}
+                    >
                       —
-                    </p>
+                    </button>
                   )}
                 </div>
               </div>
