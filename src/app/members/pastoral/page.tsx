@@ -2,7 +2,7 @@
 
 import { useState, useSyncExternalStore, useEffect } from "react";
 import Link from "next/link";
-import { Cross, ArrowLeft, Printer, TextAa, X, LockSimple } from "@phosphor-icons/react";
+import { Cross, ArrowLeft, Printer, TextAa, X } from "@phosphor-icons/react";
 import { getMembers, subscribe } from "@/lib/member-store";
 import type { Member } from "@/types";
 import { isPastoralAuthenticated, authenticatePastoral } from "@/lib/pastoral-auth";
