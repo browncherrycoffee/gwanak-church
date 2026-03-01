@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useCallback, useMemo, useRef, useSyncExternalStore } from "react";
+import { useState, useCallback, useMemo, useRef, useSyncExternalStore, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Cross, MagnifyingGlass, Users, UserPlus, User, UploadSimple, TreeStructure, Heart, House, Database, ChartBar } from "@phosphor-icons/react";
+import { Cross, MagnifyingGlass, Users, UserPlus, User, UploadSimple, TreeStructure, Heart, House, Database, ChartBar, GearSix, SignOut } from "@phosphor-icons/react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getMembers, subscribe } from "@/lib/member-store";
@@ -16,6 +16,20 @@ export default function HomePage() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const members = useSyncExternalStore(subscribe, getMembers, getMembers);
+
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/auth")
+      .then((r) => r.json())
+      .then((d) => setIsAdmin(d?.authenticated ?? false))
+      .catch(() => {});
+  }, []);
+
+  const handleLogout = async () => {
+    await fetch("/api/auth", { method: "DELETE" });
+    setIsAdmin(false);
+  };
 
   const nonRemoved = members.filter((m) => m.memberStatus !== "제적");
   const activeCount = nonRemoved.filter((m) => m.memberStatus === "활동").length;
@@ -65,7 +79,33 @@ export default function HomePage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center px-4">
+    <div className="relative flex min-h-screen flex-col items-center justify-center px-4">
+      {/* 관리자 버튼 */}
+      <div className="absolute top-4 right-4">
+        {isAdmin ? (
+          <div className="flex items-center gap-2">
+            <span className="hidden sm:inline text-xs text-primary font-medium bg-primary/10 px-2 py-1 rounded-full">
+              관리자
+            </span>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 rounded-md px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            >
+              <SignOut weight="light" className="h-4 w-4" />
+              <span>로그아웃</span>
+            </button>
+          </div>
+        ) : (
+          <Link
+            href="/login"
+            className="flex items-center gap-1.5 rounded-md px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          >
+            <GearSix weight="light" className="h-4 w-4" />
+            <span>관리자 로그인</span>
+          </Link>
+        )}
+      </div>
       {/* 로고 및 교회 이름 */}
       <div className="mb-10 flex flex-col items-center gap-3">
         <Cross weight="fill" className="h-16 w-16 text-primary" />
