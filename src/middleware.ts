@@ -5,6 +5,19 @@ import { verifyAuthToken } from "@/lib/auth";
 const PUBLIC_PATHS = ["/login", "/api/auth"];
 const STATIC_PREFIXES = ["/_next", "/favicon.ico", "/fonts", "/images", "/manifest.json"];
 
+// 인증이 필요한 쓰기 전용 경로
+const PROTECTED_PATHS = [
+  "/members/new",
+  "/members/import",
+  "/members/backup",
+];
+
+function isProtectedPath(pathname: string): boolean {
+  if (PROTECTED_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) return true;
+  if (/^\/members\/[^/]+\/edit(\/.*)?$/.test(pathname)) return true;
+  return false;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -13,6 +26,10 @@ export async function middleware(request: NextRequest) {
     STATIC_PREFIXES.some((p) => pathname.startsWith(p)) ||
     pathname === "/robots.txt"
   ) {
+    return NextResponse.next();
+  }
+
+  if (!isProtectedPath(pathname)) {
     return NextResponse.next();
   }
 

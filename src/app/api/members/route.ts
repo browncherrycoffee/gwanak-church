@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { put, list } from "@vercel/blob";
+import { verifyAuthToken } from "@/lib/auth";
 
 const BLOB_TOKEN = process.env.BLOB_READ_WRITE_TOKEN!;
 const BLOB_FILENAME = "gwanak-members-backup.json";
@@ -23,6 +25,11 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("gwanak-auth")?.value;
+    if (!token || !(await verifyAuthToken(token))) {
+      return NextResponse.json({ ok: false }, { status: 401 });
+    }
     const members = await request.json();
     const payload = {
       version: 1,

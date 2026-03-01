@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useSyncExternalStore } from "react";
+import { use, useState, useSyncExternalStore, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -25,6 +25,7 @@ import {
   X,
   CaretDown,
   CaretUp,
+  LockSimple,
 } from "@phosphor-icons/react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ import {
   updatePastoralVisit,
 } from "@/lib/member-store";
 import { formatDate } from "@/lib/utils";
+import { isPastoralAuthenticated, authenticatePastoral } from "@/lib/pastoral-auth";
 
 export default function MemberDetailPage({
   params,
@@ -67,6 +69,18 @@ export default function MemberDetailPage({
   const [editingVisitText, setEditingVisitText] = useState("");
   const [showAllPrayers, setShowAllPrayers] = useState(false);
   const [showAllVisits, setShowAllVisits] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [pastoralUnlocked, setPastoralUnlocked] = useState(false);
+  const [pastoralPin, setPastoralPin] = useState("");
+  const [pastoralPinError, setPastoralPinError] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/auth")
+      .then((r) => r.json())
+      .then((d) => setIsAdmin(d?.authenticated ?? false))
+      .catch(() => {});
+    setPastoralUnlocked(isPastoralAuthenticated());
+  }, []);
 
   // subscribe to store changes
   useSyncExternalStore(subscribe, getMembers, getMembers);
@@ -137,16 +151,20 @@ export default function MemberDetailPage({
               <Printer weight="light" className="h-4 w-4 sm:mr-1.5" />
               <span className="hidden sm:inline">인쇄</span>
             </Button>
-            <Button asChild variant="outline" size="sm" className="h-9 px-3">
-              <Link href={`/members/${id}/edit`}>
-                <PencilSimple weight="light" className="h-4 w-4 sm:mr-1.5" />
-                <span className="hidden sm:inline">수정</span>
-              </Link>
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setShowDeleteDialog(true)} className="h-9 px-3 text-destructive hover:text-destructive">
-              <Trash weight="light" className="h-4 w-4 sm:mr-1.5" />
-              <span className="hidden sm:inline">삭제</span>
-            </Button>
+            {isAdmin && (
+              <>
+                <Button asChild variant="outline" size="sm" className="h-9 px-3">
+                  <Link href={`/members/${id}/edit`}>
+                    <PencilSimple weight="light" className="h-4 w-4 sm:mr-1.5" />
+                    <span className="hidden sm:inline">수정</span>
+                  </Link>
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setShowDeleteDialog(true)} className="h-9 px-3 text-destructive hover:text-destructive">
+                  <Trash weight="light" className="h-4 w-4 sm:mr-1.5" />
+                  <span className="hidden sm:inline">삭제</span>
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -189,7 +207,7 @@ export default function MemberDetailPage({
               )}
             </div>
           </div>
-          {member.memberStatus !== "제적" && (
+          {member.memberStatus !== "제적" && isAdmin && (
             <Button
               variant="ghost"
               size="sm"
@@ -352,15 +370,17 @@ export default function MemberDetailPage({
                   <Heart weight="light" className="h-4 w-4" />
                   기도제목
                 </h2>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-9 px-3 text-sm"
-                  onClick={() => { setShowPrayerForm((v) => !v); setPrayerInput(""); }}
-                >
-                  <Plus weight="bold" className="h-3.5 w-3.5 mr-1" />
-                  추가
-                </Button>
+                {isAdmin && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 px-3 text-sm"
+                    onClick={() => { setShowPrayerForm((v) => !v); setPrayerInput(""); }}
+                  >
+                    <Plus weight="bold" className="h-3.5 w-3.5 mr-1" />
+                    추가
+                  </Button>
+                )}
               </div>
               {showPrayerForm && (
                 <div className="mb-4 space-y-2">
@@ -440,7 +460,7 @@ export default function MemberDetailPage({
                         <p className="text-sm whitespace-pre-wrap">{req.content}</p>
                       )}
                     </div>
-                    {editingPrayerId !== req.id && (
+                    {isAdmin && editingPrayerId !== req.id && (
                       <div className="flex gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                         <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-primary"
                           onClick={() => { setEditingPrayerId(req.id); setEditingPrayerText(req.content); }}>
@@ -520,16 +540,50 @@ export default function MemberDetailPage({
                   <House weight="light" className="h-4 w-4" />
                   심방 기록
                 </h2>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-9 px-3 text-sm"
-                  onClick={() => { setShowVisitForm((v) => !v); setVisitDate(""); setVisitContent(""); }}
-                >
-                  <Plus weight="bold" className="h-3.5 w-3.5 mr-1" />
-                  추가
-                </Button>
+                {isAdmin && pastoralUnlocked && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 px-3 text-sm"
+                    onClick={() => { setShowVisitForm((v) => !v); setVisitDate(""); setVisitContent(""); }}
+                  >
+                    <Plus weight="bold" className="h-3.5 w-3.5 mr-1" />
+                    추가
+                  </Button>
+                )}
               </div>
+              {!pastoralUnlocked ? (
+                <div className="py-6 text-center space-y-3">
+                  <LockSimple weight="light" className="mx-auto h-8 w-8 text-muted-foreground/40" />
+                  <p className="text-sm text-muted-foreground">비밀번호를 입력하세요</p>
+                  <form
+                    className="flex gap-2 max-w-[220px] mx-auto"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (authenticatePastoral(pastoralPin)) {
+                        setPastoralUnlocked(true);
+                        setPastoralPin("");
+                      } else {
+                        setPastoralPinError(true);
+                        setPastoralPin("");
+                      }
+                    }}
+                  >
+                    <input
+                      type="password"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={pastoralPin}
+                      onChange={(e) => { setPastoralPin(e.target.value); setPastoralPinError(false); }}
+                      placeholder="비밀번호 6자리"
+                      className="flex h-9 flex-1 rounded-md border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    />
+                    <Button type="submit" size="sm" className="h-9 shrink-0">확인</Button>
+                  </form>
+                  {pastoralPinError && <p className="text-xs text-destructive">비밀번호가 올바르지 않습니다</p>}
+                </div>
+              ) : (
+                <>
               {showVisitForm && (
                 <div className="mb-4 space-y-2">
                   <input
@@ -615,7 +669,7 @@ export default function MemberDetailPage({
                         </>
                       )}
                     </div>
-                    {editingVisitId !== visit.id && (
+                    {isAdmin && editingVisitId !== visit.id && (
                       <div className="flex gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                         <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-primary"
                           onClick={() => { setEditingVisitId(visit.id); setEditingVisitDate(visit.visitedAt); setEditingVisitText(visit.content); }}>
@@ -663,6 +717,8 @@ export default function MemberDetailPage({
                   </div>
                 );
               })()}
+                </>
+              )}
             </CardContent>
           </Card>
         </div>

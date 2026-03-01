@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
-import { createAuthToken } from "@/lib/auth";
+import { headers, cookies } from "next/headers";
+import { createAuthToken, verifyAuthToken } from "@/lib/auth";
 import { checkRateLimit, recordFailedAttempt, resetAttempts } from "@/lib/rate-limit";
+
+export async function GET() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("gwanak-auth")?.value;
+  if (!token) return NextResponse.json({ authenticated: false });
+  const ok = await verifyAuthToken(token);
+  return NextResponse.json({ authenticated: ok });
+}
 
 const COOKIE_NAME = "gwanak-auth";
 const MAX_AGE = 60 * 60 * 24 * 7; // 7 days
