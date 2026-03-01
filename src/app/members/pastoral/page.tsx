@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useSyncExternalStore, useEffect } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { Cross, ArrowLeft, Printer, TextAa, X } from "@phosphor-icons/react";
 import { getMembers, subscribe } from "@/lib/member-store";
 import type { Member } from "@/types";
-import { isPastoralAuthenticated, authenticatePastoral } from "@/lib/pastoral-auth";
+import { validatePastoralPin } from "@/lib/pastoral-auth";
 import { Button } from "@/components/ui/button";
 
 const SIZE_OPTIONS = [
@@ -104,9 +104,6 @@ export default function PastoralListPage() {
   const [pinError, setPinError] = useState(false);
   const members = useSyncExternalStore(subscribe, getMembers, getMembers);
 
-  useEffect(() => {
-    setPastoralUnlocked(isPastoralAuthenticated());
-  }, []);
 
   if (!pastoralUnlocked) {
     return (
@@ -124,7 +121,7 @@ export default function PastoralListPage() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (authenticatePastoral(pin)) {
+              if (validatePastoralPin(pin)) {
                 setPastoralUnlocked(true);
               } else {
                 setPinError(true);
