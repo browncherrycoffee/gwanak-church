@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore, useEffect } from "react";
 import Link from "next/link";
 import { Cross, ArrowLeft, Printer, TextAa, X } from "@phosphor-icons/react";
 import { getMembers, subscribe } from "@/lib/member-store";
@@ -104,6 +104,18 @@ export default function PastoralListPage() {
   const [pinError, setPinError] = useState(false);
   const members = useSyncExternalStore(subscribe, getMembers, getMembers);
 
+  // BFCache(뒤로가기) 복원 시 강제 잠금
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        setPastoralUnlocked(false);
+        setPin("");
+        setPinError(false);
+      }
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
 
   if (!pastoralUnlocked) {
     return (
