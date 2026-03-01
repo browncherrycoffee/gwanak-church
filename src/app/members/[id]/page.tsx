@@ -552,7 +552,12 @@ export default function MemberDetailPage({
                   </Button>
                 )}
               </div>
-              {!pastoralUnlocked ? (
+              {!isAdmin ? (
+                <div className="py-6 text-center">
+                  <LockSimple weight="light" className="mx-auto h-8 w-8 text-muted-foreground/30" />
+                  <p className="mt-2 text-sm text-muted-foreground">심방 기록은 비공개입니다</p>
+                </div>
+              ) : !pastoralUnlocked ? (
                 <div className="py-6 text-center space-y-3">
                   <LockSimple weight="light" className="mx-auto h-8 w-8 text-muted-foreground/40" />
                   <p className="text-sm text-muted-foreground">비밀번호를 입력하세요</p>
