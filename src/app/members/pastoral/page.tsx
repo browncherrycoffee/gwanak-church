@@ -113,11 +113,13 @@ export default function PastoralListPage() {
       <div className="flex min-h-screen items-center justify-center px-4">
         <div className="w-full max-w-sm rounded-xl border bg-card p-6 shadow-sm">
           <div className="flex flex-col items-center text-center mb-6">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary text-primary mb-3">
-              <LockSimple weight="light" className="h-6 w-6" />
-            </div>
-            <h1 className="text-lg font-semibold">심방 목록</h1>
-            <p className="mt-1 text-sm text-muted-foreground">비밀번호를 입력하세요</p>
+            <Link href="/" className="mb-4">
+              <Cross weight="fill" className="h-8 w-8 text-primary" />
+            </Link>
+            <h1 className="text-lg font-semibold">관악교회 교적부</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              심방 목록은 관리자만 열람할 수 있습니다
+            </p>
           </div>
           <form
             onSubmit={(e) => {
@@ -137,13 +139,13 @@ export default function PastoralListPage() {
               maxLength={6}
               value={pin}
               onChange={(e) => { setPin(e.target.value); setPinError(false); }}
-              placeholder="비밀번호 6자리"
-              // biome-ignore lint/a11y/noAutofocus: intentional focus on single-field PIN form
+              placeholder="관리자 비밀번호"
+              // biome-ignore lint/a11y/noAutofocus: intentional focus on single-field login form
               autoFocus
               className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
             {pinError && <p className="text-sm text-destructive">비밀번호가 올바르지 않습니다.</p>}
-            <Button type="submit" className="w-full">확인</Button>
+            <Button type="submit" className="w-full">로그인</Button>
           </form>
           <div className="mt-4 text-center">
             <Link href="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
