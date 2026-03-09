@@ -314,37 +314,6 @@ export function bulkAddPrayerRequests(
   return { totalAdded };
 }
 
-const PRAYER_IMPORT_VERSION_KEY = "gwanak-prayer-import-version";
-
-export async function autoApplyPrayerImport(): Promise<void> {
-  if (typeof window === "undefined") return;
-  try {
-    const res = await fetch("/data/prayer-import.json");
-    if (!res.ok) return;
-    const data = await res.json() as { version?: string; members?: Array<{ name: string; prayers: Array<{ createdAt: string; content: string }> }> };
-    if (!data?.version || !Array.isArray(data.members)) return;
-
-    const applied = localStorage.getItem(PRAYER_IMPORT_VERSION_KEY);
-    if (applied === data.version) return;
-
-    const nameToId = new Map(members.map((m) => [m.name, m.id]));
-    const entries = data.members
-      .map((entry) => {
-        const memberId = nameToId.get(entry.name);
-        if (!memberId) return null;
-        return { memberId, prayers: entry.prayers };
-      })
-      .filter((e): e is { memberId: string; prayers: { content: string; createdAt: string }[] } => e !== null);
-
-    const { totalAdded } = bulkAddPrayerRequests(entries);
-    localStorage.setItem(PRAYER_IMPORT_VERSION_KEY, data.version);
-    if (totalAdded > 0) {
-      console.info(`[prayer-import] ${data.version} 버전 적용: ${totalAdded}건 추가`);
-    }
-  } catch {
-    // ignore
-  }
-}
 
 export function replaceMembers(newMembers: Member[]): void {
   members = newMembers;
