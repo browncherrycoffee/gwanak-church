@@ -9,6 +9,7 @@ import {
   FunnelSimple,
   SortAscending,
   DownloadSimple,
+  ArrowRight,
 } from "@phosphor-icons/react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -62,8 +63,14 @@ export default function MembersListPage() {
 
   const members = useSyncExternalStore(subscribe, getMembers, getMembers);
 
+  // 제적 교인은 별도 페이지에서 관리 — 메인 목록에서 제외
+  const activeMembers = useMemo(
+    () => members.filter((m) => m.memberStatus !== "제적"),
+    [members],
+  );
+
   const filtered = useMemo(() => {
-    let result = query ? searchMembers(members, query) : members;
+    let result = query ? searchMembers(activeMembers, query) : activeMembers;
 
     if (positionFilter) {
       result = result.filter((m) => m.position === positionFilter);
@@ -75,14 +82,13 @@ export default function MembersListPage() {
       result = result.filter((m) => m.memberStatus === "활동");
     } else if (activeFilter === "비활동") {
       result = result.filter((m) => m.memberStatus === "비활동");
-    } else if (activeFilter === "제적") {
-      result = result.filter((m) => m.memberStatus === "제적");
     }
 
     return query ? result : sortMembers(result, sortKey);
-  }, [members, query, positionFilter, departmentFilter, activeFilter, sortKey]);
+  }, [activeMembers, query, positionFilter, departmentFilter, activeFilter, sortKey]);
 
   const activeCount = members.filter((m) => m.memberStatus === "활동").length;
+  const withdrawnCount = members.filter((m) => m.memberStatus === "제적").length;
   const hasFilters = positionFilter || departmentFilter || activeFilter;
 
   return (
@@ -189,7 +195,6 @@ export default function MembersListPage() {
                 <option value="">전체 상태</option>
                 <option value="활동">활동</option>
                 <option value="비활동">비활동</option>
-                <option value="제적">제적</option>
               </select>
               {hasFilters && (
                 <Button
@@ -215,9 +220,9 @@ export default function MembersListPage() {
           <div className="flex items-center gap-2">
             <h1 className="text-lg font-bold">전체등록교인</h1>
             <Badge variant="secondary">{filtered.length}명</Badge>
-            {filtered.length !== members.length && (
+            {filtered.length !== activeMembers.length && (
               <span className="text-xs text-muted-foreground">
-                (전체 {members.length}명 중)
+                (전체 {activeMembers.length}명 중)
               </span>
             )}
           </div>
@@ -253,6 +258,20 @@ export default function MembersListPage() {
             {filtered.map((member) => (
               <MemberCard key={member.id} member={member} />
             ))}
+          </div>
+        )}
+        {withdrawnCount > 0 && (
+          <div className="mt-6 border-t pt-5">
+            <Link
+              href="/members/withdrawn"
+              className="flex items-center justify-between rounded-lg border px-4 py-3 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+            >
+              <span>제적 교인 목록</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs">{withdrawnCount}명</span>
+                <ArrowRight weight="light" className="h-4 w-4" />
+              </div>
+            </Link>
           </div>
         )}
       </main>
