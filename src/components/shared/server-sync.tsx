@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { initFromServer, syncNow, subscribeSyncStatus } from "@/lib/member-store";
+import { initFromServer, autoApplyPrayerImport, syncNow, subscribeSyncStatus } from "@/lib/member-store";
 import { CloudArrowUp, Check } from "@phosphor-icons/react";
 
 export function ServerSync() {
@@ -9,7 +9,7 @@ export function ServerSync() {
   const [justSynced, setJustSynced] = useState(false);
 
   useEffect(() => {
-    initFromServer();
+    initFromServer().then(() => autoApplyPrayerImport());
 
     // 탭/창 닫을 때 keepalive로 강제 동기화
     const handleUnload = () => syncNow();
