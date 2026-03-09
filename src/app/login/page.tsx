@@ -27,7 +27,8 @@ function LoginForm() {
         const from = searchParams.get("from") || "/";
         router.replace(from);
       } else {
-        setError("비밀번호가 올바르지 않습니다.");
+        const data = await res.json().catch(() => ({}));
+        setError((data as { error?: string }).error || "비밀번호가 올바르지 않습니다.");
         setPassword("");
       }
     } catch {

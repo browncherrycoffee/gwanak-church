@@ -5,11 +5,12 @@ import { verifyAuthToken } from "@/lib/auth";
 const PUBLIC_PATHS = ["/login", "/api/auth"];
 const STATIC_PREFIXES = ["/_next", "/favicon.ico", "/fonts", "/images", "/manifest.json"];
 
-// 인증이 필요한 쓰기 전용 경로
+// 인증이 필요한 경로
 const PROTECTED_PATHS = [
   "/members/new",
   "/members/import",
   "/members/backup",
+  "/members/pastoral",
 ];
 
 function isProtectedPath(pathname: string): boolean {
