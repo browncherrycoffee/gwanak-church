@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore, useEffect } from "react";
 import Link from "next/link";
 import { Cross, ArrowLeft, Printer, TextAa, X } from "@phosphor-icons/react";
 import { getMembers, subscribe } from "@/lib/member-store";
 import type { Member } from "@/types";
+import { validatePastoralPin } from "@/lib/pastoral-auth";
+import { Button } from "@/components/ui/button";
 
 const SIZE_OPTIONS = [
   { label: "중", nameClass: "text-xl", contentClass: "text-base", numClass: "text-base", py: "py-4" },
@@ -97,7 +99,71 @@ function VisitModal({ member, size, onClose }: { member: Member; size: SizeOptio
 export default function PastoralListPage() {
   const [sizeIdx, setSizeIdx] = useState(1);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const [unlocked, setUnlocked] = useState(false);
+  const [pin, setPin] = useState("");
+  const [pinError, setPinError] = useState(false);
   const members = useSyncExternalStore(subscribe, getMembers, getMembers);
+
+  // BFCache(뒤로가기) 복원 시 강제 재인증
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        setUnlocked(false);
+        setPin("");
+        setPinError(false);
+      }
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
+
+  if (!unlocked) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-4">
+        <div className="w-full max-w-sm rounded-xl border bg-card p-6 shadow-sm">
+          <div className="flex flex-col items-center text-center mb-6">
+            <Link href="/" className="mb-4">
+              <Cross weight="fill" className="h-8 w-8 text-primary" />
+            </Link>
+            <h1 className="text-lg font-semibold">심방 목록</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              심방 비밀번호를 입력하세요
+            </p>
+          </div>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (validatePastoralPin(pin)) {
+                setUnlocked(true);
+              } else {
+                setPinError(true);
+                setPin("");
+              }
+            }}
+            className="space-y-4"
+          >
+            <input
+              type="password"
+              inputMode="numeric"
+              value={pin}
+              onChange={(e) => { setPin(e.target.value); setPinError(false); }}
+              placeholder="심방 비밀번호"
+              // biome-ignore lint/a11y/noAutofocus: intentional focus on single-field form
+              autoFocus
+              className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            {pinError && <p className="text-sm text-destructive">비밀번호가 올바르지 않습니다.</p>}
+            <Button type="submit" className="w-full">확인</Button>
+          </form>
+          <div className="mt-4 text-center">
+            <Link href="/members" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              돌아가기
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const size = SIZE_OPTIONS[sizeIdx] ?? SIZE_OPTIONS[1];
 
