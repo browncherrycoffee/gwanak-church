@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect } from "react";
-import { initFromServer } from "@/lib/member-store";
+import { initFromServer, autoApplyPrayerImport } from "@/lib/member-store";
 
 export function ServerSync() {
   useEffect(() => {
-    initFromServer();
+    initFromServer().then(() => autoApplyPrayerImport());
   }, []);
   return null;
 }

@@ -41,7 +41,8 @@ export default function PrayerImportPage() {
 
     fetch("/data/prayer-import.json")
       .then((r) => r.json())
-      .then((data: PrayerImportEntry[]) => {
+      .then((raw: PrayerImportEntry[] | { version?: string; members?: PrayerImportEntry[] }) => {
+        const data: PrayerImportEntry[] = Array.isArray(raw) ? raw : (raw.members ?? []);
         const nameToId = new Map(members.map((m) => [m.name, m.id]));
 
         const matchedEntries: MatchedEntry[] = [];
