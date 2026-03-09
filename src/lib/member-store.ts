@@ -62,18 +62,46 @@ function saveToStorage(data: Member[]) {
 let members: Member[] = loadFromStorage();
 let listeners: Array<() => void> = [];
 
-// 자동 서버 동기화 (3초 debounce)
+// 자동 서버 동기화 (1초 debounce)
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
+let syncListeners: Array<(pending: boolean) => void> = [];
+
+export function subscribeSyncStatus(listener: (pending: boolean) => void) {
+  syncListeners = [...syncListeners, listener];
+  return () => { syncListeners = syncListeners.filter((l) => l !== listener); };
+}
+
+function notifySyncStatus(pending: boolean) {
+  for (const l of syncListeners) l(pending);
+}
+
 function scheduleSync() {
   if (typeof window === "undefined") return;
   if (syncTimer) clearTimeout(syncTimer);
+  notifySyncStatus(true);
   syncTimer = setTimeout(() => {
+    syncTimer = null;
     fetch("/api/members", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(members),
-    }).catch(() => {});
-  }, 3000);
+    })
+      .then(() => notifySyncStatus(false))
+      .catch(() => notifySyncStatus(false));
+  }, 1000);
+}
+
+export function syncNow(): void {
+  if (typeof window === "undefined") return;
+  if (syncTimer) { clearTimeout(syncTimer); syncTimer = null; }
+  fetch("/api/members", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(members),
+    keepalive: true,
+  })
+    .then(() => notifySyncStatus(false))
+    .catch(() => notifySyncStatus(false));
 }
 
 // 앱 시작 시 서버에서 최신 데이터 불러오기
