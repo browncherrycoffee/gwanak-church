@@ -117,18 +117,13 @@ export default function MemberDetailPage({
     { icon: Tag, label: "직분", value: member.position },
     { icon: UsersThree, label: "소속", value: [member.department, member.district].filter(Boolean).join(" / ") },
     { icon: CalendarBlank, label: "등록일", value: member.registrationDate ? formatDate(member.registrationDate) : null },
-  ];
-
-  const familyRows = [
-    { icon: UsersThree, label: "세대주", value: member.familyHead },
-    { icon: User, label: "관계", value: member.relationship },
+    { icon: CalendarBlank, label: "세례교인회원가입일", value: member.memberJoinDate ? formatDate(member.memberJoinDate) : null },
   ];
 
   const baptismRows = [
     { icon: Cross, label: "세례 종류", value: member.baptismType },
     { icon: CalendarBlank, label: "세례일", value: member.baptismDate ? formatDate(member.baptismDate) : null },
     { icon: Cross, label: "세례받은 교회", value: member.baptismChurch },
-    { icon: CalendarBlank, label: "세례교인회원가입일", value: member.memberJoinDate ? formatDate(member.memberJoinDate) : null },
   ];
 
   return (
@@ -279,58 +274,8 @@ export default function MemberDetailPage({
             </CardContent>
           </Card>
 
-          {/* 가족 정보 */}
-          {(member.familyHead || member.relationship) && (() => {
-            const familyMembers = member.familyHead
-              ? getMembers().filter((m) => m.familyHead === member.familyHead && m.id !== member.id)
-              : [];
-            return (
-              <Card>
-                <CardContent className="p-5">
-                  <h2 className="text-sm font-semibold text-muted-foreground mb-4">가족 정보</h2>
-                  <div className="space-y-3">
-                    {familyRows.map((row) => row.value && (
-                      <div key={row.label} className="flex items-start gap-3">
-                        <row.icon weight="light" className="mt-0.5 h-4 w-4 text-muted-foreground shrink-0" />
-                        <div>
-                          <p className="text-xs text-muted-foreground">{row.label}</p>
-                          <p className="text-sm">{row.value}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  {familyMembers.length > 0 && (
-                    <div className="mt-4 pt-4 border-t">
-                      <p className="text-xs text-muted-foreground mb-2">같은 세대 교인</p>
-                      <div className="space-y-2">
-                        {familyMembers.map((fm) => (
-                          <Link
-                            key={fm.id}
-                            href={`/members/${fm.id}`}
-                            className="flex items-center gap-2 rounded-md p-2 -mx-2 hover:bg-secondary transition-colors"
-                          >
-                            <User weight="light" className="h-4 w-4 text-primary shrink-0" />
-                            <span className="text-sm font-medium">{fm.name}</span>
-                            {fm.relationship && (
-                              <span className="text-xs text-muted-foreground">({fm.relationship})</span>
-                            )}
-                            {fm.position && (
-                              <Badge variant="secondary" className="text-[10px] ml-auto">
-                                {fm.position}
-                              </Badge>
-                            )}
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })()}
-
           {/* 세례 정보 */}
-          {(member.baptismType || member.baptismDate || member.baptismChurch || member.memberJoinDate) && (
+          {(member.baptismType || member.baptismDate || member.baptismChurch) && (
             <Card>
               <CardContent className="p-5">
                 <h2 className="text-sm font-semibold text-muted-foreground mb-4">세례 정보</h2>
@@ -348,6 +293,44 @@ export default function MemberDetailPage({
               </CardContent>
             </Card>
           )}
+
+          {/* 가족 정보 */}
+          {member.familyMembers && member.familyMembers.length > 0 && (() => {
+            const allMembers = getMembers();
+            const nameToMember = new Map(allMembers.map((m) => [m.name, m]));
+            return (
+              <Card>
+                <CardContent className="p-5">
+                  <h2 className="text-sm font-semibold text-muted-foreground mb-4">가족 정보</h2>
+                  <div className="space-y-2">
+                    {member.familyMembers.map((name) => {
+                      const fm = nameToMember.get(name);
+                      return fm ? (
+                        <Link
+                          key={name}
+                          href={`/members/${fm.id}`}
+                          className="flex items-center gap-2 rounded-md px-2 py-2 -mx-2 hover:bg-secondary transition-colors"
+                        >
+                          <User weight="light" className="h-4 w-4 text-primary shrink-0" />
+                          <span className="text-sm font-medium">{name}</span>
+                          {fm.position && fm.position !== "성도" && (
+                            <Badge variant="secondary" className="text-[10px] ml-auto">
+                              {fm.position}
+                            </Badge>
+                          )}
+                        </Link>
+                      ) : (
+                        <div key={name} className="flex items-center gap-2 px-2 py-2">
+                          <User weight="light" className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <span className="text-sm text-muted-foreground">{name}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
 
           {/* 비고 */}
           {member.notes && (

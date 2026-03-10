@@ -1,6 +1,9 @@
 import type { MemberFormData } from "@/types";
 
-const HEADER_MAP: Record<string, keyof MemberFormData> = {
+// Fields that map directly to string fields
+type StringFormField = Exclude<keyof MemberFormData, "familyMembers">;
+
+const HEADER_MAP: Record<string, StringFormField | "familyMembers"> = {
   "이름": "name",
   "연락처": "phone",
   "주소": "address",
@@ -10,8 +13,9 @@ const HEADER_MAP: Record<string, keyof MemberFormData> = {
   "직분": "position",
   "소속": "department",
   "구역": "district",
-  "세대주": "familyHead",
-  "관계": "relationship",
+  "가족": "familyMembers",
+  // legacy compat
+  "세대주": "familyMembers",
   "세례종류": "baptismType",
   "세례일": "baptismDate",
   "세례받은교회": "baptismChurch",
@@ -59,11 +63,10 @@ export function parseCsvImport(csvText: string): { members: MemberFormData[]; er
     return { members: [], errors: ["헤더 행이 없습니다."] };
   }
 
-  // Remove BOM if present
   const cleanHeader = headerLine.replace(/^\uFEFF/, "");
   const headers = parseCsvLine(cleanHeader);
 
-  const columnMap: Array<keyof MemberFormData | null> = headers.map((h) => {
+  const columnMap: Array<StringFormField | "familyMembers" | null> = headers.map((h) => {
     return HEADER_MAP[h] ?? null;
   });
 
@@ -89,8 +92,7 @@ export function parseCsvImport(csvText: string): { members: MemberFormData[]; er
       position: "성도",
       department: "",
       district: "",
-      familyHead: "",
-      relationship: "",
+      familyMembers: [],
       baptismDate: "",
       baptismType: "",
       baptismChurch: "",
@@ -103,8 +105,12 @@ export function parseCsvImport(csvText: string): { members: MemberFormData[]; er
 
     for (let j = 0; j < fields.length; j++) {
       const key = columnMap[j];
-      if (key && fields[j]) {
-        member[key] = fields[j] ?? "";
+      const value = fields[j] ?? "";
+      if (!key || !value) continue;
+      if (key === "familyMembers") {
+        member.familyMembers = value.split("/").map((n) => n.trim()).filter(Boolean);
+      } else {
+        (member as unknown as Record<string, unknown>)[key] = value;
       }
     }
 

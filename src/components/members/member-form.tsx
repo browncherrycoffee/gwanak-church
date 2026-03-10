@@ -6,8 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { FloppyDisk, ArrowLeft, Camera, Trash } from "@phosphor-icons/react";
-import { POSITIONS, DEPARTMENTS, BAPTISM_TYPES, GENDERS, RELATIONSHIPS, MEMBER_STATUSES } from "@/lib/constants";
+import { FloppyDisk, ArrowLeft, Camera, Trash, Plus, X } from "@phosphor-icons/react";
+import { POSITIONS, DEPARTMENTS, BAPTISM_TYPES, GENDERS, MEMBER_STATUSES } from "@/lib/constants";
 import { formatPhoneNumber, resizeImage } from "@/lib/utils";
 import type { Member, MemberFormData } from "@/types";
 
@@ -30,8 +30,7 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
     position: initialData?.position ?? "성도",
     department: initialData?.department ?? "",
     district: initialData?.district ?? "",
-    familyHead: initialData?.familyHead ?? "",
-    relationship: initialData?.relationship ?? "",
+    familyMembers: initialData?.familyMembers ?? [],
     baptismDate: initialData?.baptismDate ?? "",
     baptismType: initialData?.baptismType ?? "",
     baptismChurch: initialData?.baptismChurch ?? "",
@@ -42,8 +41,27 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
     photoUrl: initialData?.photoUrl ?? "",
   });
 
-  const handleChange = (field: keyof MemberFormData, value: string) => {
+  const handleChange = (field: keyof Omit<MemberFormData, "familyMembers">, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleFamilyChange = (idx: number, value: string) => {
+    setForm((prev) => {
+      const next = [...prev.familyMembers];
+      next[idx] = value;
+      return { ...prev, familyMembers: next };
+    });
+  };
+
+  const addFamilyMember = () => {
+    setForm((prev) => ({ ...prev, familyMembers: [...prev.familyMembers, ""] }));
+  };
+
+  const removeFamilyMember = (idx: number) => {
+    setForm((prev) => ({
+      ...prev,
+      familyMembers: prev.familyMembers.filter((_, i) => i !== idx),
+    }));
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -61,7 +79,10 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) return;
-    onSubmit(form);
+    onSubmit({
+      ...form,
+      familyMembers: form.familyMembers.map((n) => n.trim()).filter(Boolean),
+    });
   };
 
   return (
@@ -241,6 +262,15 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
                 />
               </div>
               <div>
+                <label htmlFor="member-memberJoinDate" className="text-sm font-medium mb-1.5 block">세례교인회원가입일</label>
+                <Input
+                  id="member-memberJoinDate"
+                  type="date"
+                  value={form.memberJoinDate}
+                  onChange={(e) => handleChange("memberJoinDate", e.target.value)}
+                />
+              </div>
+              <div>
                 <label htmlFor="member-memberStatus" className="text-sm font-medium mb-1.5 block">상태</label>
                 <select
                   id="member-memberStatus"
@@ -250,38 +280,6 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
                 >
                   {MEMBER_STATUSES.map((s) => (
                     <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* 가족 정보 */}
-          <div>
-            <h3 className="text-sm font-semibold text-muted-foreground mb-4">가족 정보</h3>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <div>
-                <label htmlFor="member-familyHead" className="text-sm font-medium mb-1.5 block">세대주</label>
-                <Input
-                  id="member-familyHead"
-                  value={form.familyHead}
-                  onChange={(e) => handleChange("familyHead", e.target.value)}
-                  placeholder="세대주 이름"
-                />
-              </div>
-              <div>
-                <label htmlFor="member-relationship" className="text-sm font-medium mb-1.5 block">관계</label>
-                <select
-                  id="member-relationship"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  value={form.relationship}
-                  onChange={(e) => handleChange("relationship", e.target.value)}
-                >
-                  <option value="">선택</option>
-                  {RELATIONSHIPS.map((r) => (
-                    <option key={r} value={r}>{r}</option>
                   ))}
                 </select>
               </div>
@@ -326,15 +324,44 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
                   placeholder="세례받은 교회"
                 />
               </div>
-              <div>
-                <label htmlFor="member-memberJoinDate" className="text-sm font-medium mb-1.5 block">세례교인회원가입일</label>
-                <Input
-                  id="member-memberJoinDate"
-                  type="date"
-                  value={form.memberJoinDate}
-                  onChange={(e) => handleChange("memberJoinDate", e.target.value)}
-                />
-              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* 가족 정보 */}
+          <div>
+            <h3 className="text-sm font-semibold text-muted-foreground mb-4">가족 정보</h3>
+            <div className="space-y-2">
+              {form.familyMembers.map((name, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <Input
+                    value={name}
+                    onChange={(e) => handleFamilyChange(idx, e.target.value)}
+                    placeholder="가족 이름"
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-10 w-10 shrink-0 text-muted-foreground hover:text-destructive"
+                    onClick={() => removeFamilyMember(idx)}
+                  >
+                    <X weight="bold" className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addFamilyMember}
+                className="mt-1"
+              >
+                <Plus weight="bold" className="mr-1.5 h-3.5 w-3.5" />
+                가족 추가
+              </Button>
             </div>
           </div>
 

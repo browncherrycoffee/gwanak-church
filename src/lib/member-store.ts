@@ -5,7 +5,7 @@ import { sampleMembers } from "./sample-data";
 
 const STORAGE_KEY = "gwanak-members";
 const VERSION_KEY = "gwanak-data-version";
-const DATA_VERSION = 8;
+const DATA_VERSION = 9;
 
 function loadFromStorage(): Member[] {
   if (typeof window === "undefined") return [...sampleMembers];
@@ -19,8 +19,14 @@ function loadFromStorage(): Member[] {
         if (Array.isArray(rawParsed) && rawParsed.length > 0) {
           const migrated: Member[] = rawParsed.map((raw) => {
             const m = raw as unknown as Member;
+            const existingFamily = Array.isArray(m.familyMembers) ? m.familyMembers : [];
+            const legacyHead = (m as unknown as Record<string, unknown>).familyHead;
+            const familyMembers = existingFamily.length > 0
+              ? existingFamily
+              : (legacyHead && typeof legacyHead === "string" ? [legacyHead] : []);
             return {
               ...m,
+              familyMembers,
               prayerRequests: Array.isArray(m.prayerRequests) ? m.prayerRequests : [],
               pastoralVisits: Array.isArray(m.pastoralVisits) ? m.pastoralVisits : [],
             };
@@ -159,6 +165,7 @@ export function addMember(data: MemberFormData): Member {
   const newMember: Member = {
     id: crypto.randomUUID(),
     ...data,
+    familyMembers: data.familyMembers ?? [],
     memberStatus: data.memberStatus || "활동",
     prayerRequests: [],
     pastoralVisits: [],

@@ -22,8 +22,10 @@ export interface Member {
   position: string | null;
   department: string | null;
   district: string | null;
-  familyHead: string | null;
-  relationship: string | null;
+  familyMembers: string[];
+  // legacy fields kept for migration compat
+  familyHead?: string | null;
+  relationship?: string | null;
   baptismDate: string | null;
   baptismType: string | null;
   baptismChurch: string | null;
@@ -48,8 +50,7 @@ export interface MemberFormData {
   position: string;
   department: string;
   district: string;
-  familyHead: string;
-  relationship: string;
+  familyMembers: string[];
   baptismDate: string;
   baptismType: string;
   baptismChurch: string;
