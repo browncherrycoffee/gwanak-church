@@ -104,9 +104,17 @@ export function syncNow(): void {
     .catch(() => notifySyncStatus(false));
 }
 
-// 앱 시작 시 서버에서 최신 데이터 불러오기
+// 서버에서 최신 데이터 불러오기 (중복 호출 방지)
+let fetchInProgress = false;
+let lastFetchAt = 0;
+const MIN_FETCH_INTERVAL = 5_000; // 5초 내 재호출 무시
+
 export async function initFromServer(): Promise<void> {
   if (typeof window === "undefined") return;
+  const now = Date.now();
+  if (fetchInProgress || now - lastFetchAt < MIN_FETCH_INTERVAL) return;
+  fetchInProgress = true;
+  lastFetchAt = now;
   try {
     const res = await fetch("/api/members");
     if (!res.ok) return;
@@ -116,7 +124,6 @@ export async function initFromServer(): Promise<void> {
     const serverTime = new Date(data.exportedAt).getTime();
     const localModified = parseInt(localStorage.getItem("gwanak-last-modified") ?? "0");
 
-    // 서버가 더 최신이거나 로컬 수정 이력이 없으면 서버 데이터 사용
     if (serverTime > localModified) {
       members = data.members;
       saveToStorage(members);
@@ -125,6 +132,8 @@ export async function initFromServer(): Promise<void> {
     }
   } catch {
     // 서버 연결 실패 시 localStorage 유지
+  } finally {
+    fetchInProgress = false;
   }
 }
 

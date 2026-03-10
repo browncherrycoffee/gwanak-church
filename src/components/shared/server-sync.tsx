@@ -15,6 +15,15 @@ export function ServerSync() {
     const handleUnload = () => syncNow();
     window.addEventListener("beforeunload", handleUnload);
 
+    // 탭/앱이 다시 활성화될 때 즉시 갱신 (PC 탭 전환, 모바일 앱 전환)
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") initFromServer();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    // 10초마다 폴링 — 다기기 동시 사용 시 자동 최신화
+    const poll = setInterval(() => initFromServer(), 10_000);
+
     // 동기화 상태 구독
     const unsub = subscribeSyncStatus((p) => {
       setPending(p);
@@ -26,6 +35,8 @@ export function ServerSync() {
 
     return () => {
       window.removeEventListener("beforeunload", handleUnload);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      clearInterval(poll);
       unsub();
     };
   }, []);
