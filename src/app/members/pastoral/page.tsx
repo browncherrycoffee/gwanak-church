@@ -223,14 +223,14 @@ export default function PastoralListPage() {
         <div className="border-t bg-muted/20 px-4 py-2">
           <div className="mx-auto flex max-w-3xl items-center gap-2">
             <TextAa weight="light" className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">글씨 크기</span>
-            <div className="flex items-center gap-1.5">
+            <span className="hidden sm:inline text-xs text-muted-foreground">글씨 크기</span>
+            <div className="flex items-center gap-1">
               {SIZE_LABELS.map((label, i) => (
                 <button
                   key={label}
                   type="button"
                   onClick={() => setSizeIdx(i)}
-                  className={`min-w-[48px] rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                  className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                     sizeIdx === i
                       ? "bg-primary text-primary-foreground"
                       : "border bg-background text-muted-foreground hover:text-foreground"
