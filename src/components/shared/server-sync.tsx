@@ -21,8 +21,8 @@ export function ServerSync() {
     };
     document.addEventListener("visibilitychange", handleVisibility);
 
-    // 10초마다 폴링 — 다기기 동시 사용 시 자동 최신화
-    const poll = setInterval(() => initFromServer(), 10_000);
+    // 5초마다 폴링 — 다기기 동시 사용 시 자동 최신화
+    const poll = setInterval(() => initFromServer(), 5_000);
 
     // 동기화 상태 구독
     const unsub = subscribeSyncStatus((p) => {

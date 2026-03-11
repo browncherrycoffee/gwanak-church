@@ -113,7 +113,7 @@ export function syncNow(): void {
 // 서버에서 최신 데이터 불러오기 (중복 호출 방지)
 let fetchInProgress = false;
 let lastFetchAt = 0;
-const MIN_FETCH_INTERVAL = 5_000; // 5초 내 재호출 무시
+const MIN_FETCH_INTERVAL = 3_000; // 3초 내 재호출 무시
 
 export async function initFromServer(): Promise<void> {
   if (typeof window === "undefined") return;
@@ -122,7 +122,7 @@ export async function initFromServer(): Promise<void> {
   fetchInProgress = true;
   lastFetchAt = now;
   try {
-    const res = await fetch("/api/members");
+    const res = await fetch("/api/members", { cache: "no-store" });
     if (!res.ok) return;
     const data = await res.json();
     if (!data?.members?.length) return;
