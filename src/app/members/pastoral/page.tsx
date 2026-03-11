@@ -12,6 +12,7 @@ const SIZE_OPTIONS = [
   { label: "중", nameClass: "text-xl", contentClass: "text-base", numClass: "text-base", py: "py-4" },
   { label: "대", nameClass: "text-2xl", contentClass: "text-lg", numClass: "text-lg", py: "py-5" },
   { label: "특대", nameClass: "text-3xl", contentClass: "text-xl", numClass: "text-xl", py: "py-6" },
+  { label: "최대", nameClass: "text-5xl", contentClass: "text-2xl", numClass: "text-2xl", py: "py-8" },
 ];
 
 type SizeOption = (typeof SIZE_OPTIONS)[number];
