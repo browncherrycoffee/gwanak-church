@@ -179,7 +179,8 @@ export default function PastoralListPage() {
   return (
     <div className="min-h-screen">
       <header className="border-b bg-background no-print">
-        <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-4">
+        {/* 1행: 네비게이션 */}
+        <div className="mx-auto flex h-12 max-w-3xl items-center justify-between px-4">
           <div className="flex items-center gap-3">
             <Link href="/" className="shrink-0">
               <Cross weight="fill" className="h-7 w-7 text-primary" />
@@ -192,32 +193,36 @@ export default function PastoralListPage() {
               목록
             </Link>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-0.5 rounded-lg border p-1">
-              <TextAa weight="light" className="h-4 w-4 text-muted-foreground ml-1 mr-0.5 hidden sm:block" />
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="hidden sm:flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm hover:bg-secondary transition-colors"
+          >
+            <Printer weight="light" className="h-4 w-4" />
+            인쇄
+          </button>
+        </div>
+        {/* 2행: 글씨 크기 선택 — PC·모바일 모두 표시 */}
+        <div className="border-t bg-muted/20 px-4 py-2">
+          <div className="mx-auto flex max-w-3xl items-center gap-2">
+            <TextAa weight="light" className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">글씨 크기</span>
+            <div className="flex items-center gap-1.5">
               {SIZE_OPTIONS.map((opt, i) => (
                 <button
                   key={opt.label}
                   type="button"
                   onClick={() => setSizeIdx(i)}
-                  className={`rounded px-2 py-1.5 text-xs font-medium transition-colors ${
+                  className={`min-w-[48px] rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                     sizeIdx === i
                       ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground"
+                      : "border bg-background text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   {opt.label}
                 </button>
               ))}
             </div>
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="hidden sm:flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm hover:bg-secondary transition-colors"
-            >
-              <Printer weight="light" className="h-4 w-4" />
-              인쇄
-            </button>
           </div>
         </div>
       </header>

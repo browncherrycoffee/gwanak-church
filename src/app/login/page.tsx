@@ -1,11 +1,10 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { LockSimple } from "@phosphor-icons/react";
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -25,15 +24,16 @@ function LoginForm() {
 
       if (res.ok) {
         const from = searchParams.get("from") || "/";
-        router.replace(from);
+        // window.location 으로 풀 페이지 이동: 새 쿠키를 확실히 포함하여 미들웨어 통과
+        window.location.href = from;
       } else {
         const data = await res.json().catch(() => ({}));
         setError((data as { error?: string }).error || "비밀번호가 올바르지 않습니다.");
         setPassword("");
+        setSubmitting(false);
       }
     } catch {
       setError("서버 오류가 발생했습니다.");
-    } finally {
       setSubmitting(false);
     }
   };
@@ -53,6 +53,8 @@ function LoginForm() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
             type="password"
+            inputMode="numeric"
+            autoComplete="current-password"
             value={password}
             onChange={(e) => {
               setPassword(e.target.value);
