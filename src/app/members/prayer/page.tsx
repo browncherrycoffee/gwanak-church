@@ -6,15 +6,35 @@ import { Cross, ArrowLeft, Printer, TextAa, X } from "@phosphor-icons/react";
 import { getMembers, subscribe } from "@/lib/member-store";
 import type { Member } from "@/types";
 
-const SIZE_OPTIONS = [
-  { label: "중", nameClass: "text-xl", prayerClass: "text-base", numClass: "text-base", py: "py-4" },
-  { label: "대", nameClass: "text-2xl", prayerClass: "text-lg", numClass: "text-lg", py: "py-5" },
-  { label: "특대", nameClass: "text-3xl", prayerClass: "text-xl", numClass: "text-xl", py: "py-6" },
-];
+const SIZE_LABELS = ["중", "대", "특대", "최대"] as const;
 
-type SizeOption = (typeof SIZE_OPTIONS)[number];
+// 정적 클래스명 반환 — Tailwind가 각 문자열을 확실히 번들에 포함
+function getNameClass(i: number) {
+  if (i === 0) return "text-xl";
+  if (i === 1) return "text-2xl";
+  if (i === 2) return "text-3xl";
+  return "text-5xl";
+}
+function getPrayerClass(i: number) {
+  if (i === 0) return "text-base";
+  if (i === 1) return "text-lg";
+  if (i === 2) return "text-xl";
+  return "text-2xl";
+}
+function getNumClass(i: number) {
+  if (i === 0) return "text-base";
+  if (i === 1) return "text-lg";
+  if (i === 2) return "text-xl";
+  return "text-2xl";
+}
+function getPyClass(i: number) {
+  if (i === 0) return "py-4";
+  if (i === 1) return "py-5";
+  if (i === 2) return "py-6";
+  return "py-8";
+}
 
-function PrayerModal({ member, size, onClose }: { member: Member; size: SizeOption; onClose: () => void }) {
+function PrayerModal({ member, sizeIdx, onClose }: { member: Member; sizeIdx: number; onClose: () => void }) {
   const sorted = [...member.prayerRequests].sort((a, b) =>
     b.createdAt.localeCompare(a.createdAt)
   );
@@ -76,7 +96,7 @@ function PrayerModal({ member, size, onClose }: { member: Member; size: SizeOpti
                 <div className="space-y-3">
                   {reqs.map((req) => (
                     <div key={req.id} className="leading-relaxed">
-                      <p className={`${size.prayerClass} text-foreground/80`}>{req.content}</p>
+                      <p className={`${getPrayerClass(sizeIdx)} text-foreground/80`}>{req.content}</p>
                       {/^\d{4}-\d{2}-\d{2}/.test(req.createdAt) && (
                         <p className="text-xs text-muted-foreground/50 mt-0.5">
                           {req.createdAt.substring(0, 10)}
@@ -99,8 +119,6 @@ export default function PrayerListPage() {
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const members = useSyncExternalStore(subscribe, getMembers, getMembers);
 
-  const size = SIZE_OPTIONS[sizeIdx] ?? SIZE_OPTIONS[1];
-
   const selectedMember = selectedMemberId
     ? members.find((m) => m.id === selectedMemberId) ?? null
     : null;
@@ -112,7 +130,8 @@ export default function PrayerListPage() {
   return (
     <div className="min-h-screen">
       <header className="border-b bg-background no-print">
-        <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-4">
+        {/* 1행: 네비게이션 */}
+        <div className="mx-auto flex h-12 max-w-3xl items-center justify-between px-4">
           <div className="flex items-center gap-3">
             <Link href="/" className="shrink-0">
               <Cross weight="fill" className="h-7 w-7 text-primary" />
@@ -125,32 +144,36 @@ export default function PrayerListPage() {
               목록
             </Link>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 rounded-lg border p-1">
-              <TextAa weight="light" className="h-4 w-4 text-muted-foreground ml-1" />
-              {SIZE_OPTIONS.map((opt, i) => (
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="hidden sm:flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm hover:bg-secondary transition-colors"
+          >
+            <Printer weight="light" className="h-4 w-4" />
+            인쇄
+          </button>
+        </div>
+        {/* 2행: 글씨 크기 선택 — PC·모바일 모두 표시 */}
+        <div className="border-t bg-muted/20 px-4 py-2">
+          <div className="mx-auto flex max-w-3xl items-center gap-2">
+            <TextAa weight="light" className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="hidden sm:inline text-xs text-muted-foreground">글씨 크기</span>
+            <div className="flex items-center gap-1">
+              {SIZE_LABELS.map((label, i) => (
                 <button
-                  key={opt.label}
+                  key={label}
                   type="button"
                   onClick={() => setSizeIdx(i)}
-                  className={`rounded px-3 py-2 text-sm font-medium transition-colors ${
+                  className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                     sizeIdx === i
                       ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground"
+                      : "border bg-background text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  {opt.label}
+                  {label}
                 </button>
               ))}
             </div>
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm hover:bg-secondary transition-colors"
-            >
-              <Printer weight="light" className="h-4 w-4" />
-              인쇄
-            </button>
           </div>
         </div>
       </header>
@@ -169,9 +192,9 @@ export default function PrayerListPage() {
               b.createdAt.localeCompare(a.createdAt)
             )[0];
             return (
-              <div key={member.id} className={`flex gap-4 ${size?.py ?? "py-5"}`}>
+              <div key={member.id} className={`flex gap-4 ${getPyClass(sizeIdx)}`}>
                 <span
-                  className={`${size?.numClass ?? "text-lg"} w-9 shrink-0 text-right font-mono text-muted-foreground/50 pt-0.5`}
+                  className={`${getNumClass(sizeIdx)} w-9 shrink-0 text-right font-mono text-muted-foreground/50 pt-0.5`}
                 >
                   {idx + 1}
                 </span>
@@ -179,12 +202,12 @@ export default function PrayerListPage() {
                   <div className="flex items-baseline gap-2 flex-wrap">
                     <Link
                       href={`/members/${member.id}`}
-                      className={`${size?.nameClass ?? "text-2xl"} font-bold leading-snug hover:text-primary transition-colors`}
+                      className={`${getNameClass(sizeIdx)} font-bold leading-snug hover:text-primary transition-colors`}
                     >
                       {member.name}
                     </Link>
                     {member.position && member.position !== "성도" && (
-                      <span className={`${size?.prayerClass ?? "text-lg"} text-muted-foreground`}>
+                      <span className={`${getPrayerClass(sizeIdx)} text-muted-foreground`}>
                         {member.position}
                       </span>
                     )}
@@ -193,7 +216,7 @@ export default function PrayerListPage() {
                     <button
                       type="button"
                       onClick={() => setSelectedMemberId(member.id)}
-                      className={`${size?.prayerClass ?? "text-lg"} mt-1.5 text-left leading-relaxed text-foreground/80 hover:text-primary transition-colors cursor-pointer`}
+                      className={`${getPrayerClass(sizeIdx)} mt-1.5 text-left leading-relaxed text-foreground/80 hover:text-primary transition-colors cursor-pointer`}
                     >
                       {latestPrayer.content}
                       {member.prayerRequests.length > 1 && (
@@ -203,7 +226,7 @@ export default function PrayerListPage() {
                       )}
                     </button>
                   ) : (
-                    <p className={`${size?.prayerClass ?? "text-lg"} mt-1.5 text-muted-foreground/40 italic`}>
+                    <p className={`${getPrayerClass(sizeIdx)} mt-1.5 text-muted-foreground/40 italic`}>
                       —
                     </p>
                   )}
@@ -221,8 +244,8 @@ export default function PrayerListPage() {
         }
       `}</style>
 
-      {selectedMember && size && (
-        <PrayerModal member={selectedMember} size={size} onClose={() => setSelectedMemberId(null)} />
+      {selectedMember && (
+        <PrayerModal member={selectedMember} sizeIdx={sizeIdx} onClose={() => setSelectedMemberId(null)} />
       )}
     </div>
   );
