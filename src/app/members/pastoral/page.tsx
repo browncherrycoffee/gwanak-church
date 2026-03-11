@@ -8,16 +8,35 @@ import type { Member } from "@/types";
 import { validatePastoralPin } from "@/lib/pastoral-auth";
 import { Button } from "@/components/ui/button";
 
-const SIZE_OPTIONS = [
-  { label: "중", nameClass: "text-xl", contentClass: "text-base", numClass: "text-base", py: "py-4" },
-  { label: "대", nameClass: "text-2xl", contentClass: "text-lg", numClass: "text-lg", py: "py-5" },
-  { label: "특대", nameClass: "text-3xl", contentClass: "text-xl", numClass: "text-xl", py: "py-6" },
-  { label: "최대", nameClass: "text-5xl", contentClass: "text-2xl", numClass: "text-2xl", py: "py-8" },
-];
+const SIZE_LABELS = ["중", "대", "특대", "최대"] as const;
 
-type SizeOption = (typeof SIZE_OPTIONS)[number];
+// 정적 클래스명 반환 — Tailwind가 각 문자열을 확실히 번들에 포함
+function getNameClass(i: number) {
+  if (i === 0) return "text-xl";
+  if (i === 1) return "text-2xl";
+  if (i === 2) return "text-3xl";
+  return "text-5xl";
+}
+function getContentClass(i: number) {
+  if (i === 0) return "text-base";
+  if (i === 1) return "text-lg";
+  if (i === 2) return "text-xl";
+  return "text-2xl";
+}
+function getNumClass(i: number) {
+  if (i === 0) return "text-base";
+  if (i === 1) return "text-lg";
+  if (i === 2) return "text-xl";
+  return "text-2xl";
+}
+function getPyClass(i: number) {
+  if (i === 0) return "py-4";
+  if (i === 1) return "py-5";
+  if (i === 2) return "py-6";
+  return "py-8";
+}
 
-function VisitModal({ member, size, onClose }: { member: Member; size: SizeOption; onClose: () => void }) {
+function VisitModal({ member, sizeIdx, onClose }: { member: Member; sizeIdx: number; onClose: () => void }) {
   const sorted = [...member.pastoralVisits].sort((a, b) =>
     b.visitedAt.localeCompare(a.visitedAt)
   );
@@ -79,7 +98,7 @@ function VisitModal({ member, size, onClose }: { member: Member; size: SizeOptio
                 <div className="space-y-3">
                   {visits.map((visit) => (
                     <div key={visit.id} className="leading-relaxed">
-                      <p className={`${size.contentClass} text-foreground/80`}>{visit.content}</p>
+                      <p className={`${getContentClass(sizeIdx)} text-foreground/80`}>{visit.content}</p>
                       {/^\d{4}-\d{2}-\d{2}/.test(visit.visitedAt) && (
                         <p className="text-xs text-muted-foreground/50 mt-0.5">
                           {visit.visitedAt}
@@ -166,8 +185,6 @@ export default function PastoralListPage() {
     );
   }
 
-  const size = SIZE_OPTIONS[sizeIdx] ?? SIZE_OPTIONS[1];
-
   const selectedMember = selectedMemberId
     ? members.find((m) => m.id === selectedMemberId) ?? null
     : null;
@@ -208,9 +225,9 @@ export default function PastoralListPage() {
             <TextAa weight="light" className="h-4 w-4 shrink-0 text-muted-foreground" />
             <span className="text-xs text-muted-foreground">글씨 크기</span>
             <div className="flex items-center gap-1.5">
-              {SIZE_OPTIONS.map((opt, i) => (
+              {SIZE_LABELS.map((label, i) => (
                 <button
-                  key={opt.label}
+                  key={label}
                   type="button"
                   onClick={() => setSizeIdx(i)}
                   className={`min-w-[48px] rounded-md px-3 py-2 text-sm font-medium transition-colors ${
@@ -219,7 +236,7 @@ export default function PastoralListPage() {
                       : "border bg-background text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  {opt.label}
+                  {label}
                 </button>
               ))}
             </div>
@@ -241,9 +258,9 @@ export default function PastoralListPage() {
               b.visitedAt.localeCompare(a.visitedAt)
             )[0];
             return (
-              <div key={member.id} className={`flex gap-4 ${size?.py ?? "py-5"}`}>
+              <div key={member.id} className={`flex gap-4 ${getPyClass(sizeIdx)}`}>
                 <span
-                  className={`${size?.numClass ?? "text-lg"} w-9 shrink-0 text-right font-mono text-muted-foreground/50 pt-0.5`}
+                  className={`${getNumClass(sizeIdx)} w-9 shrink-0 text-right font-mono text-muted-foreground/50 pt-0.5`}
                 >
                   {idx + 1}
                 </span>
@@ -251,12 +268,12 @@ export default function PastoralListPage() {
                   <div className="flex items-baseline gap-2 flex-wrap">
                     <Link
                       href={`/members/${member.id}`}
-                      className={`${size?.nameClass ?? "text-2xl"} font-bold leading-snug hover:text-primary transition-colors`}
+                      className={`${getNameClass(sizeIdx)} font-bold leading-snug hover:text-primary transition-colors`}
                     >
                       {member.name}
                     </Link>
                     {member.position && member.position !== "성도" && (
-                      <span className={`${size?.contentClass ?? "text-lg"} text-muted-foreground`}>
+                      <span className={`${getContentClass(sizeIdx)} text-muted-foreground`}>
                         {member.position}
                       </span>
                     )}
@@ -270,7 +287,7 @@ export default function PastoralListPage() {
                     <button
                       type="button"
                       onClick={() => setSelectedMemberId(member.id)}
-                      className={`${size?.contentClass ?? "text-lg"} mt-1.5 text-left leading-relaxed text-foreground/80 hover:text-primary transition-colors cursor-pointer`}
+                      className={`${getContentClass(sizeIdx)} mt-1.5 text-left leading-relaxed text-foreground/80 hover:text-primary transition-colors cursor-pointer`}
                     >
                       {latestVisit.content}
                       {member.pastoralVisits.length > 1 && (
@@ -283,7 +300,7 @@ export default function PastoralListPage() {
                     <button
                       type="button"
                       onClick={() => setSelectedMemberId(member.id)}
-                      className={`${size?.contentClass ?? "text-lg"} mt-1.5 text-muted-foreground/40 italic hover:text-muted-foreground transition-colors cursor-pointer`}
+                      className={`${getContentClass(sizeIdx)} mt-1.5 text-muted-foreground/40 italic hover:text-muted-foreground transition-colors cursor-pointer`}
                     >
                       —
                     </button>
@@ -302,8 +319,8 @@ export default function PastoralListPage() {
         }
       `}</style>
 
-      {selectedMember && size && (
-        <VisitModal member={selectedMember} size={size} onClose={() => setSelectedMemberId(null)} />
+      {selectedMember && (
+        <VisitModal member={selectedMember} sizeIdx={sizeIdx} onClose={() => setSelectedMemberId(null)} />
       )}
     </div>
   );
