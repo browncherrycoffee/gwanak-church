@@ -10,7 +10,7 @@ const PROTECTED_PATHS = [
   "/members/new",
   "/members/import",
   "/members/backup",
-  "/members/pastoral",
+  // pastoral은 페이지 자체 PIN(321791)으로 보호 — admin 쿠키 불필요
 ];
 
 function isProtectedPath(pathname: string): boolean {

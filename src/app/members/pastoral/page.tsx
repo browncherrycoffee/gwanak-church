@@ -179,7 +179,7 @@ export default function PastoralListPage() {
   return (
     <div className="min-h-screen">
       <header className="border-b bg-background no-print">
-        <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-4">
+        <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-4">
           <div className="flex items-center gap-3">
             <Link href="/" className="shrink-0">
               <Cross weight="fill" className="h-7 w-7 text-primary" />
@@ -193,14 +193,14 @@ export default function PastoralListPage() {
             </Link>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 rounded-lg border p-1">
-              <TextAa weight="light" className="h-4 w-4 text-muted-foreground ml-1" />
+            <div className="flex items-center gap-0.5 rounded-lg border p-1">
+              <TextAa weight="light" className="h-4 w-4 text-muted-foreground ml-1 mr-0.5 hidden sm:block" />
               {SIZE_OPTIONS.map((opt, i) => (
                 <button
                   key={opt.label}
                   type="button"
                   onClick={() => setSizeIdx(i)}
-                  className={`rounded px-3 py-2 text-sm font-medium transition-colors ${
+                  className={`rounded px-2 py-1.5 text-xs font-medium transition-colors ${
                     sizeIdx === i
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:text-foreground"
@@ -213,7 +213,7 @@ export default function PastoralListPage() {
             <button
               type="button"
               onClick={() => window.print()}
-              className="flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm hover:bg-secondary transition-colors"
+              className="hidden sm:flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm hover:bg-secondary transition-colors"
             >
               <Printer weight="light" className="h-4 w-4" />
               인쇄
