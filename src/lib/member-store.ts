@@ -113,7 +113,15 @@ export function syncNow(): void {
 // 서버에서 최신 데이터 불러오기 (중복 호출 방지)
 let fetchInProgress = false;
 let lastFetchAt = 0;
-const MIN_FETCH_INTERVAL = 3_000; // 3초 내 재호출 무시
+const MIN_FETCH_INTERVAL = 1_500; // 1.5초 내 재호출 무시
+
+// 서버에서 실제로 새 데이터를 받아왔을 때 알림 (다른 기기 업데이트 감지)
+let serverUpdateListeners: Array<() => void> = [];
+
+export function subscribeServerUpdate(listener: () => void) {
+  serverUpdateListeners = [...serverUpdateListeners, listener];
+  return () => { serverUpdateListeners = serverUpdateListeners.filter((l) => l !== listener); };
+}
 
 export async function initFromServer(): Promise<void> {
   if (typeof window === "undefined") return;
@@ -135,11 +143,33 @@ export async function initFromServer(): Promise<void> {
       saveToStorage(members);
       localStorage.setItem("gwanak-last-modified", String(serverTime));
       for (const listener of listeners) listener();
+      for (const listener of serverUpdateListeners) listener();
     }
   } catch {
     // 서버 연결 실패 시 localStorage 유지
   } finally {
     fetchInProgress = false;
+  }
+}
+
+// 버전 타임스탬프만 확인 후 변경된 경우에만 전체 데이터 로드 — 폴링 비용 최소화
+let lastKnownServerUploadedAt = "";
+
+export async function pollForChanges(): Promise<void> {
+  if (typeof window === "undefined") return;
+  try {
+    const res = await fetch("/api/members/version", { cache: "no-store" });
+    if (!res.ok) return;
+    const data = await res.json() as { uploadedAt?: string } | null;
+    if (!data?.uploadedAt) return;
+
+    // 이미 알고 있는 버전이면 전체 로드 스킵
+    if (data.uploadedAt === lastKnownServerUploadedAt) return;
+
+    lastKnownServerUploadedAt = data.uploadedAt;
+    await initFromServer();
+  } catch {
+    // 네트워크 오류 무시
   }
 }
 
