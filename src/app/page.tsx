@@ -220,7 +220,7 @@ export default function HomePage() {
             >
               <Link href="/members/prayer">
                 <Heart weight="light" className="mr-1.5 h-4 w-4 shrink-0" />
-                기도 목록
+                전교인 기도목록
               </Link>
             </Button>
             <Button
