@@ -293,7 +293,7 @@ export default function PrayerListPage() {
         {view === "all" ? (
           <>
             <div className="mb-6 flex items-center justify-between no-print">
-              <h1 className="text-xl font-bold">전교인 기도목록</h1>
+              <h1 className="text-xl font-bold">기도 목록</h1>
               <span className="text-sm text-muted-foreground">
                 활동 교인 {active.length}명 · 가나다순
               </span>
