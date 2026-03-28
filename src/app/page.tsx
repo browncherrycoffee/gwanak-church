@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo, useRef, useSyncExternalStore, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Cross, MagnifyingGlass, Users, UserPlus, User, UploadSimple, TreeStructure, Heart, House, Database, ChartBar, GearSix, SignOut } from "@phosphor-icons/react";
+import { Cross, MagnifyingGlass, Users, UserPlus, User, UploadSimple, TreeStructure, Heart, House, Database, ChartBar, GearSix, SignOut, Car } from "@phosphor-icons/react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getMembers, subscribe } from "@/lib/member-store";
@@ -158,6 +158,12 @@ export default function HomePage() {
                       <span className="text-sm font-medium">{member.name}</span>
                       {member.position && member.position !== "성도" && (
                         <span className="text-xs text-muted-foreground">{member.position}</span>
+                      )}
+                      {member.carNumber && query && member.carNumber.replace(/\s/g, "").toLowerCase().includes(query.replace(/\s/g, "").toLowerCase()) && (
+                        <span className="flex items-center gap-0.5 text-xs font-medium text-primary">
+                          <Car weight="light" className="h-3 w-3" />
+                          {member.carNumber}
+                        </span>
                       )}
                     </div>
                     {member.phone && (

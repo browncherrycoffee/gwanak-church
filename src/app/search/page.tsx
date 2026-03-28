@@ -128,7 +128,7 @@ function SearchContent() {
         ) : (
           <div className="space-y-3">
             {results.map((member) => (
-              <MemberCard key={member.id} member={member} />
+              <MemberCard key={member.id} member={member} query={initialQuery} />
             ))}
           </div>
         )}

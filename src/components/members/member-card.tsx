@@ -2,16 +2,25 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { User, Phone, MapPin } from "@phosphor-icons/react";
+import { User, Phone, MapPin, Car } from "@phosphor-icons/react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { Member } from "@/types";
 
 interface MemberCardProps {
   member: Member;
+  query?: string;
 }
 
-export function MemberCard({ member }: MemberCardProps) {
+function matchesCar(member: Member, query: string): boolean {
+  if (!member.carNumber || !query.trim()) return false;
+  const normalized = member.carNumber.replace(/\s/g, "").toLowerCase();
+  const q = query.replace(/\s/g, "").toLowerCase();
+  return normalized.includes(q);
+}
+
+export function MemberCard({ member, query }: MemberCardProps) {
+  const showCar = query ? matchesCar(member, query) : false;
   return (
     <Link href={`/members/${member.id}`}>
       <Card className="group transition-all hover:border-primary/30 hover:shadow-sm">
@@ -74,6 +83,12 @@ export function MemberCard({ member }: MemberCardProps) {
               <span className="flex items-center gap-1 truncate max-w-xs">
                 <MapPin weight="light" className="h-3.5 w-3.5 shrink-0" />
                 <span className="truncate">{member.address}</span>
+              </span>
+            )}
+            {showCar && member.carNumber && (
+              <span className="flex items-center gap-1 font-medium text-primary">
+                <Car weight="light" className="h-3.5 w-3.5 shrink-0" />
+                {member.carNumber}
               </span>
             )}
           </div>
