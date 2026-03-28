@@ -1,7 +1,7 @@
 import Fuse from "fuse.js";
 import type { Member } from "@/types";
 
-type SearchRecord = Member & { _phoneDigits: string; _carNumberDigits: string };
+type SearchRecord = Member & { _phoneDigits: string; _carNumberDigits: string; _carNumberLast4: string };
 
 const FUSE_OPTIONS: ConstructorParameters<typeof Fuse<SearchRecord>>[1] = {
   keys: [
@@ -10,6 +10,7 @@ const FUSE_OPTIONS: ConstructorParameters<typeof Fuse<SearchRecord>>[1] = {
     { name: "_phoneDigits", weight: 2 },
     { name: "carNumber", weight: 2 },
     { name: "_carNumberDigits", weight: 2 },
+    { name: "_carNumberLast4", weight: 2.5 },
     { name: "position", weight: 1.5 },
     { name: "department", weight: 1 },
     { name: "familyHead", weight: 1.5 },
@@ -37,12 +38,13 @@ export function searchMembers(members: Member[], query: string): Member[] {
       ...m,
       _phoneDigits: m.phone?.replace(/-/g, "") ?? "",
       _carNumberDigits: m.carNumber?.replace(/\s/g, "") ?? "",
+      _carNumberLast4: (m.carNumber?.match(/\d{4}$/) ?? [""])[0],
     }));
     cachedFuse = new Fuse(records, FUSE_OPTIONS);
   }
 
   return cachedFuse.search(query.trim()).map((r) => {
-    const { _phoneDigits: _, _carNumberDigits: __, ...member } = r.item;
+    const { _phoneDigits: _, _carNumberDigits: __, _carNumberLast4: ___, ...member } = r.item;
     return member;
   });
 }
