@@ -37,6 +37,7 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
     registrationDate: initialData?.registrationDate ?? (initialData ? "" : new Date().toISOString().slice(0, 10)),
     memberJoinDate: initialData?.memberJoinDate ?? "",
     memberStatus: initialData?.memberStatus ?? "활동",
+    carNumber: initialData?.carNumber ?? "",
     notes: initialData?.notes ?? "",
     photoUrl: initialData?.photoUrl ?? "",
   });
@@ -154,6 +155,15 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
                   value={form.detailAddress}
                   onChange={(e) => handleChange("detailAddress", e.target.value)}
                   placeholder="동/호수"
+                />
+              </div>
+              <div>
+                <label htmlFor="member-carNumber" className="text-sm font-medium mb-1.5 block">차량 번호</label>
+                <Input
+                  id="member-carNumber"
+                  value={form.carNumber}
+                  onChange={(e) => handleChange("carNumber", e.target.value)}
+                  placeholder="예: 12가 3456"
                 />
               </div>
               <div className="sm:col-span-2 lg:col-span-3">

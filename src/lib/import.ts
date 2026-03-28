@@ -99,6 +99,7 @@ export function parseCsvImport(csvText: string): { members: MemberFormData[]; er
       registrationDate: new Date().toISOString().slice(0, 10),
       memberJoinDate: "",
       memberStatus: "활동",
+      carNumber: "",
       notes: "",
       photoUrl: "",
     };

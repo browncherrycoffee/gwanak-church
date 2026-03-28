@@ -37,6 +37,7 @@ function m(
     registrationDate,
     memberJoinDate,
     notes,
+    carNumber: null,
     photoUrl: null,
     memberStatus: status,
     prayerRequests: [],

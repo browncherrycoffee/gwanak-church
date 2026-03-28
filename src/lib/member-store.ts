@@ -27,6 +27,7 @@ function loadFromStorage(): Member[] {
             return {
               ...m,
               familyMembers,
+              carNumber: m.carNumber ?? null,
               prayerRequests: Array.isArray(m.prayerRequests) ? m.prayerRequests : [],
               pastoralVisits: Array.isArray(m.pastoralVisits) ? m.pastoralVisits : [],
             };
@@ -197,6 +198,7 @@ export function addMember(data: MemberFormData): Member {
     ...data,
     familyMembers: data.familyMembers ?? [],
     memberStatus: data.memberStatus || "활동",
+    carNumber: data.carNumber || null,
     prayerRequests: [],
     pastoralVisits: [],
     createdAt: now,

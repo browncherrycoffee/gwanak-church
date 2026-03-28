@@ -31,6 +31,7 @@ export interface Member {
   baptismChurch: string | null;
   registrationDate: string | null;
   memberJoinDate: string | null;
+  carNumber: string | null;
   notes: string | null;
   photoUrl: string | null;
   memberStatus: string;
@@ -57,6 +58,7 @@ export interface MemberFormData {
   registrationDate: string;
   memberJoinDate: string;
   memberStatus: string;
+  carNumber: string;
   notes: string;
   photoUrl: string;
 }

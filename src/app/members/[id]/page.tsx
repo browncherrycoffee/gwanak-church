@@ -26,6 +26,7 @@ import {
   CaretDown,
   CaretUp,
   LockSimple,
+  Car,
 } from "@phosphor-icons/react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -111,6 +112,7 @@ export default function MemberDetailPage({
     { icon: MapPin, label: "주소", value: fullAddress || null, linkType: "address" as const },
     { icon: CalendarBlank, label: "생년월일", value: member.birthDate ? formatDate(member.birthDate) : null, linkType: "none" as const },
     { icon: User, label: "성별", value: member.gender, linkType: "none" as const },
+    { icon: Car, label: "차량 번호", value: member.carNumber ?? null, linkType: "none" as const },
   ];
 
   const churchRows = [
