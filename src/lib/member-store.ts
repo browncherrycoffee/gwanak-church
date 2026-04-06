@@ -69,38 +69,93 @@ function saveToStorage(data: Member[]) {
 let members: Member[] = loadFromStorage();
 let listeners: Array<() => void> = [];
 
-// 자동 서버 동기화 (1초 debounce)
-let syncTimer: ReturnType<typeof setTimeout> | null = null;
+// ─── 동기화 상태 ────────────────────────────────────────────────────────────
+let fullSyncTimer: ReturnType<typeof setTimeout> | null = null;
+const memberSyncTimers = new Map<string, ReturnType<typeof setTimeout>>();
 let syncListeners: Array<(pending: boolean) => void> = [];
+let syncErrorListeners: Array<(hasError: boolean) => void> = [];
 
 export function subscribeSyncStatus(listener: (pending: boolean) => void) {
   syncListeners = [...syncListeners, listener];
   return () => { syncListeners = syncListeners.filter((l) => l !== listener); };
 }
 
+export function subscribeSyncError(listener: (hasError: boolean) => void) {
+  syncErrorListeners = [...syncErrorListeners, listener];
+  return () => { syncErrorListeners = syncErrorListeners.filter((l) => l !== listener); };
+}
+
 function notifySyncStatus(pending: boolean) {
   for (const l of syncListeners) l(pending);
 }
 
+function notifySyncError(hasError: boolean) {
+  for (const l of syncErrorListeners) l(hasError);
+}
+
+function isPending() {
+  return fullSyncTimer !== null || memberSyncTimers.size > 0;
+}
+
+// 전체 배열 PUT — 교인 추가/삭제/일괄 작업 시
 function scheduleSync() {
   if (typeof window === "undefined") return;
-  if (syncTimer) clearTimeout(syncTimer);
+  if (fullSyncTimer) clearTimeout(fullSyncTimer);
   notifySyncStatus(true);
-  syncTimer = setTimeout(() => {
-    syncTimer = null;
-    fetch("/api/members", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(members),
-    })
-      .then(() => notifySyncStatus(false))
-      .catch(() => notifySyncStatus(false));
+  fullSyncTimer = setTimeout(async () => {
+    fullSyncTimer = null;
+    try {
+      const res = await fetch("/api/members", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(members),
+      });
+      if (!res.ok && res.status === 401) notifySyncError(true);
+      else notifySyncError(false);
+    } catch {
+      // 네트워크 오류 무시
+    }
+    if (!isPending()) notifySyncStatus(false);
   }, 1000);
+}
+
+// 교인 1명 PATCH — 수정 시 다른 교인 데이터 덮어쓰기 방지
+function scheduleMemberSync(memberId: string) {
+  if (typeof window === "undefined") return;
+  const existing = memberSyncTimers.get(memberId);
+  if (existing) clearTimeout(existing);
+  notifySyncStatus(true);
+  const timer = setTimeout(async () => {
+    memberSyncTimers.delete(memberId);
+    const member = members.find((m) => m.id === memberId);
+    if (member) {
+      try {
+        const res = await fetch(`/api/members/${memberId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ member }),
+        });
+        if (!res.ok) {
+          if (res.status === 401) notifySyncError(true);
+          else scheduleSync(); // PATCH 실패 시 전체 PUT 폴백
+        } else {
+          notifySyncError(false);
+        }
+      } catch {
+        scheduleSync(); // 네트워크 오류 시 전체 PUT 폴백
+      }
+    }
+    if (!isPending()) notifySyncStatus(false);
+  }, 1000);
+  memberSyncTimers.set(memberId, timer);
 }
 
 export function syncNow(): void {
   if (typeof window === "undefined") return;
-  if (syncTimer) { clearTimeout(syncTimer); syncTimer = null; }
+  // 대기 중인 타이머 모두 취소 후 전체 PUT
+  if (fullSyncTimer) { clearTimeout(fullSyncTimer); fullSyncTimer = null; }
+  memberSyncTimers.forEach((t) => clearTimeout(t));
+  memberSyncTimers.clear();
   fetch("/api/members", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -176,13 +231,13 @@ export async function pollForChanges(): Promise<void> {
   }
 }
 
-function notify() {
+// memberId 있으면 교인 1명 PATCH, 없으면 전체 PUT (추가/삭제/일괄)
+function notify(memberId?: string) {
   saveToStorage(members);
   localStorage.setItem("gwanak-last-modified", String(Date.now()));
-  scheduleSync();
-  for (const listener of listeners) {
-    listener();
-  }
+  if (memberId) scheduleMemberSync(memberId);
+  else scheduleSync();
+  for (const listener of listeners) listener();
 }
 
 export function getMembers(): Member[] {
@@ -223,7 +278,7 @@ export function updateMember(id: string, data: Partial<MemberFormData>): Member 
     updatedAt: new Date().toISOString(),
   };
   members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
-  notify();
+  notify(id);
   return updated;
 }
 
@@ -240,7 +295,7 @@ export function toggleMemberStatus(id: string): Member | null {
     updatedAt: new Date().toISOString(),
   };
   members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
-  notify();
+  notify(id);
   return updated;
 }
 
@@ -274,7 +329,7 @@ export function addPrayerRequest(memberId: string, content: string): Member | nu
     updatedAt: new Date().toISOString(),
   };
   members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
-  notify();
+  notify(memberId);
   return updated;
 }
 
@@ -290,7 +345,7 @@ export function deletePrayerRequest(memberId: string, requestId: string): Member
     updatedAt: new Date().toISOString(),
   };
   members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
-  notify();
+  notify(memberId);
   return updated;
 }
 
@@ -309,7 +364,7 @@ export function addPastoralVisit(memberId: string, visitedAt: string, content: s
     updatedAt: new Date().toISOString(),
   };
   members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
-  notify();
+  notify(memberId);
   return updated;
 }
 
@@ -343,7 +398,7 @@ export function updatePrayerRequest(memberId: string, requestId: string, content
     updatedAt: new Date().toISOString(),
   };
   members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
-  notify();
+  notify(memberId);
   return updated;
 }
 
@@ -361,7 +416,7 @@ export function updatePastoralVisit(memberId: string, visitId: string, visitedAt
     updatedAt: new Date().toISOString(),
   };
   members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
-  notify();
+  notify(memberId);
   return updated;
 }
 

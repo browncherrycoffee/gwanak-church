@@ -7,14 +7,16 @@ import {
   syncNow,
   subscribeSyncStatus,
   subscribeServerUpdate,
+  subscribeSyncError,
   pollForChanges,
 } from "@/lib/member-store";
-import { CloudArrowUp, Check, ArrowsClockwise } from "@phosphor-icons/react";
+import { CloudArrowUp, Check, ArrowsClockwise, WarningCircle } from "@phosphor-icons/react";
 
 export function ServerSync() {
   const [pending, setPending] = useState(false);
   const [justSynced, setJustSynced] = useState(false);
   const [remoteUpdated, setRemoteUpdated] = useState(false);
+  const [syncError, setSyncError] = useState(false);
 
   useEffect(() => {
     // 첫 로드 시 서버 데이터 초기화
@@ -30,8 +32,8 @@ export function ServerSync() {
     };
     document.addEventListener("visibilitychange", handleVisibility);
 
-    // 3초마다 버전 체크 → 변경 있을 때만 전체 데이터 로드
-    const poll = setInterval(() => pollForChanges(), 3_000);
+    // 2초마다 버전 체크 → 변경 있을 때만 전체 데이터 로드
+    const poll = setInterval(() => pollForChanges(), 2_000);
 
     // 로컬 저장 상태 구독
     const unsubSync = subscribeSyncStatus((p) => {
@@ -40,6 +42,12 @@ export function ServerSync() {
         setJustSynced(true);
         setTimeout(() => setJustSynced(false), 2000);
       }
+    });
+
+    // 저장 오류 (로그인 필요 등)
+    const unsubError = subscribeSyncError((err) => {
+      setSyncError(err);
+      if (err) setTimeout(() => setSyncError(false), 6000);
     });
 
     // 다른 기기에서 업데이트된 경우 알림
@@ -53,15 +61,21 @@ export function ServerSync() {
       document.removeEventListener("visibilitychange", handleVisibility);
       clearInterval(poll);
       unsubSync();
+      unsubError();
       unsubRemote();
     };
   }, []);
 
-  if (!pending && !justSynced && !remoteUpdated) return null;
+  if (!pending && !justSynced && !remoteUpdated && !syncError) return null;
 
   return (
     <div className="fixed bottom-4 right-4 z-50 flex items-center gap-1.5 rounded-full border bg-background px-3 py-1.5 text-xs shadow-sm text-muted-foreground">
-      {pending ? (
+      {syncError ? (
+        <>
+          <WarningCircle weight="bold" className="h-3.5 w-3.5 text-destructive" />
+          <span className="text-destructive">저장 실패 — 로그인 필요</span>
+        </>
+      ) : pending ? (
         <>
           <CloudArrowUp weight="light" className="h-3.5 w-3.5 animate-pulse text-primary" />
           저장 중…
