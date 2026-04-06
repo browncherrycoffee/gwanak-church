@@ -159,8 +159,8 @@ export default function HomePage() {
                       {member.position && member.position !== "성도" && (
                         <span className="text-xs text-muted-foreground">{member.position}</span>
                       )}
-                      {member.carNumber && query && member.carNumber.replace(/\s/g, "").toLowerCase().includes(query.replace(/\s/g, "").toLowerCase()) && (
-                        <span className="flex items-center gap-0.5 text-xs font-medium text-primary">
+                      {member.carNumber && (
+                        <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
                           <Car weight="light" className="h-3 w-3" />
                           {member.carNumber}
                         </span>

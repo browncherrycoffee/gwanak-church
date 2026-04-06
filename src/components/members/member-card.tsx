@@ -12,15 +12,10 @@ interface MemberCardProps {
   query?: string;
 }
 
-function matchesCar(member: Member, query: string): boolean {
-  if (!member.carNumber || !query.trim()) return false;
-  const normalized = member.carNumber.replace(/\s/g, "").toLowerCase();
-  const q = query.replace(/\s/g, "").toLowerCase();
-  return normalized.includes(q);
-}
-
 export function MemberCard({ member, query }: MemberCardProps) {
-  const showCar = query ? matchesCar(member, query) : false;
+  const carHighlight = query
+    ? member.carNumber?.replace(/\s/g, "").toLowerCase().includes(query.replace(/\s/g, "").toLowerCase()) ?? false
+    : false;
   return (
     <Link href={`/members/${member.id}`}>
       <Card className="group transition-all hover:border-primary/30 hover:shadow-sm">
@@ -85,8 +80,8 @@ export function MemberCard({ member, query }: MemberCardProps) {
                 <span className="truncate">{member.address}</span>
               </span>
             )}
-            {showCar && member.carNumber && (
-              <span className="flex items-center gap-1 font-medium text-primary">
+            {member.carNumber && (
+              <span className={`flex items-center gap-1 ${carHighlight ? "font-medium text-primary" : "text-muted-foreground"}`}>
                 <Car weight="light" className="h-3.5 w-3.5 shrink-0" />
                 {member.carNumber}
               </span>
