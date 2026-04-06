@@ -124,7 +124,7 @@ export function subscribeServerUpdate(listener: () => void) {
   return () => { serverUpdateListeners = serverUpdateListeners.filter((l) => l !== listener); };
 }
 
-export async function initFromServer(): Promise<void> {
+export async function initFromServer(force = false): Promise<void> {
   if (typeof window === "undefined") return;
   const now = Date.now();
   if (fetchInProgress || now - lastFetchAt < MIN_FETCH_INTERVAL) return;
@@ -139,7 +139,9 @@ export async function initFromServer(): Promise<void> {
     const serverTime = new Date(data.exportedAt).getTime();
     const localModified = parseInt(localStorage.getItem("gwanak-last-modified") ?? "0");
 
-    if (serverTime > localModified) {
+    // force=true: 폴링이 새 버전을 감지했을 때 → 타임스탬프 비교 없이 무조건 적용
+    // force=false: 탭 전환 등 일반 초기화 → 로컬이 더 최신이면 스킵
+    if (force || serverTime > localModified) {
       members = data.members;
       saveToStorage(members);
       localStorage.setItem("gwanak-last-modified", String(serverTime));
@@ -168,7 +170,7 @@ export async function pollForChanges(): Promise<void> {
     if (data.uploadedAt === lastKnownServerUploadedAt) return;
 
     lastKnownServerUploadedAt = data.uploadedAt;
-    await initFromServer();
+    await initFromServer(true); // 새 버전 감지됨 → 강제 적용
   } catch {
     // 네트워크 오류 무시
   }
