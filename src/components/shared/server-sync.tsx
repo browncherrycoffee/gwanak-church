@@ -36,9 +36,14 @@ export function ServerSync() {
     const poll = setInterval(() => pollForChanges(), 2_000);
 
     // 로컬 저장 상태 구독
+    let pendingTimeout: ReturnType<typeof setTimeout> | null = null;
     const unsubSync = subscribeSyncStatus((p) => {
       setPending(p);
-      if (!p) {
+      if (pendingTimeout) { clearTimeout(pendingTimeout); pendingTimeout = null; }
+      if (p) {
+        // 20초 안전장치 — 저장 중 상태가 영원히 남지 않도록
+        pendingTimeout = setTimeout(() => setPending(false), 20_000);
+      } else {
         setJustSynced(true);
         setTimeout(() => setJustSynced(false), 3000);
       }
