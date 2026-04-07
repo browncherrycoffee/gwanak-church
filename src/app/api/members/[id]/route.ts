@@ -72,38 +72,47 @@ async function handleUpdate(
     };
 
     // upsert: 없으면 INSERT, 있으면 UPDATE (새 교인 추가도 지원)
-    await db
-      .insert(members)
-      .values(values)
-      .onConflictDoUpdate({
-        target: members.id,
-        set: {
-          name: sql`excluded.name`,
-          gender: sql`excluded.gender`,
-          birthDate: sql`excluded.birth_date`,
-          phone: sql`excluded.phone`,
-          address: sql`excluded.address`,
-          detailAddress: sql`excluded.detail_address`,
-          department: sql`excluded.department`,
-          district: sql`excluded.district`,
-          position: sql`excluded.position`,
-          familyHead: sql`excluded.family_head`,
-          relationship: sql`excluded.relationship`,
-          baptismType: sql`excluded.baptism_type`,
-          registrationDate: sql`excluded.registration_date`,
-          carNumber: sql`excluded.car_number`,
-          memberStatus: sql`excluded.member_status`,
-          baptismDate: sql`excluded.baptism_date`,
-          baptismChurch: sql`excluded.baptism_church`,
-          memberJoinDate: sql`excluded.member_join_date`,
-          photoUrl: sql`excluded.photo_url`,
-          notes: sql`excluded.notes`,
-          familyMembers: sql`excluded.family_members`,
-          prayerRequests: sql`excluded.prayer_requests`,
-          pastoralVisits: sql`excluded.pastoral_visits`,
-          updatedAt: sql`NOW()`,
-        },
-      });
+    // 동시 편집 충돌 시 1회 재시도
+    const doUpsert = () =>
+      db
+        .insert(members)
+        .values(values)
+        .onConflictDoUpdate({
+          target: members.id,
+          set: {
+            name: sql`excluded.name`,
+            gender: sql`excluded.gender`,
+            birthDate: sql`excluded.birth_date`,
+            phone: sql`excluded.phone`,
+            address: sql`excluded.address`,
+            detailAddress: sql`excluded.detail_address`,
+            department: sql`excluded.department`,
+            district: sql`excluded.district`,
+            position: sql`excluded.position`,
+            familyHead: sql`excluded.family_head`,
+            relationship: sql`excluded.relationship`,
+            baptismType: sql`excluded.baptism_type`,
+            registrationDate: sql`excluded.registration_date`,
+            carNumber: sql`excluded.car_number`,
+            memberStatus: sql`excluded.member_status`,
+            baptismDate: sql`excluded.baptism_date`,
+            baptismChurch: sql`excluded.baptism_church`,
+            memberJoinDate: sql`excluded.member_join_date`,
+            photoUrl: sql`excluded.photo_url`,
+            notes: sql`excluded.notes`,
+            familyMembers: sql`excluded.family_members`,
+            prayerRequests: sql`excluded.prayer_requests`,
+            pastoralVisits: sql`excluded.pastoral_visits`,
+            updatedAt: sql`NOW()`,
+          },
+        });
+
+    try {
+      await doUpsert();
+    } catch {
+      // 동시 쓰기 충돌 시 한 번 재시도
+      await doUpsert();
+    }
 
     return NextResponse.json({ ok: true });
   } catch {
