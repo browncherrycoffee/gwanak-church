@@ -40,7 +40,7 @@ export function ServerSync() {
       setPending(p);
       if (!p) {
         setJustSynced(true);
-        setTimeout(() => setJustSynced(false), 2000);
+        setTimeout(() => setJustSynced(false), 3000);
       }
     });
 
@@ -69,26 +69,36 @@ export function ServerSync() {
   if (!pending && !justSynced && !remoteUpdated && !syncError) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex items-center gap-1.5 rounded-full border bg-background px-3 py-1.5 text-xs shadow-sm text-muted-foreground">
+    <div
+      className={`fixed bottom-6 right-4 z-50 flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium shadow-lg transition-all ${
+        syncError
+          ? "border-destructive/30 bg-destructive/10 text-destructive"
+          : pending
+          ? "border-primary/20 bg-background text-muted-foreground"
+          : remoteUpdated
+          ? "border-blue-300 bg-blue-50 text-blue-700"
+          : "border-green-300 bg-green-50 text-green-700"
+      }`}
+    >
       {syncError ? (
         <>
-          <WarningCircle weight="bold" className="h-3.5 w-3.5 text-destructive" />
-          <span className="text-destructive">저장 실패 — 로그인 필요</span>
+          <WarningCircle weight="bold" className="h-4 w-4" />
+          <span>저장 실패 — 다시 로그인 필요</span>
         </>
       ) : pending ? (
         <>
-          <CloudArrowUp weight="light" className="h-3.5 w-3.5 animate-pulse text-primary" />
-          저장 중…
+          <CloudArrowUp weight="light" className="h-4 w-4 animate-pulse text-primary" />
+          <span>저장 중…</span>
         </>
       ) : remoteUpdated ? (
         <>
-          <ArrowsClockwise weight="bold" className="h-3.5 w-3.5 text-blue-500" />
-          <span className="text-blue-600">다른 기기에서 업데이트됨</span>
+          <ArrowsClockwise weight="bold" className="h-4 w-4" />
+          <span>다른 기기에서 수정됨 — 최신화됨</span>
         </>
       ) : (
         <>
-          <Check weight="bold" className="h-3.5 w-3.5 text-primary" />
-          저장됨
+          <Check weight="bold" className="h-4 w-4" />
+          <span>저장 및 동기화 완료</span>
         </>
       )}
     </div>
