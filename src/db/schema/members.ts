@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, timestamp, date } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, text, timestamp, date, jsonb } from "drizzle-orm/pg-core";
 
 export const members = pgTable("members", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -11,13 +11,20 @@ export const members = pgTable("members", {
   position: varchar("position", { length: 30 }).default("성도"),
   department: varchar("department", { length: 50 }),
   district: varchar("district", { length: 50 }),
+  familyMembers: text("family_members").array().default([]).notNull(),
   familyHead: varchar("family_head", { length: 50 }),
   relationship: varchar("relationship", { length: 20 }),
   baptismDate: date("baptism_date"),
   baptismType: varchar("baptism_type", { length: 20 }),
+  baptismChurch: varchar("baptism_church", { length: 100 }),
   registrationDate: date("registration_date"),
+  memberJoinDate: date("member_join_date"),
+  carNumber: varchar("car_number", { length: 20 }),
   notes: text("notes"),
-  memberStatus: varchar("member_status", { length: 10 }).default("활동"),
+  photoUrl: text("photo_url"),
+  memberStatus: varchar("member_status", { length: 10 }).default("활동").notNull(),
+  prayerRequests: jsonb("prayer_requests").default([]).notNull(),
+  pastoralVisits: jsonb("pastoral_visits").default([]).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });

@@ -1,72 +1,9 @@
 "use client";
 
-import type { Member, MemberFormData } from "@/types";
-import { sampleMembers } from "./sample-data";
+import type { Member, MemberFormData, PrayerRequest, PastoralVisit } from "@/types";
 
-const STORAGE_KEY = "gwanak-members";
-const VERSION_KEY = "gwanak-data-version";
-const DATA_VERSION = 9;
-
-function loadFromStorage(): Member[] {
-  if (typeof window === "undefined") return [...sampleMembers];
-  try {
-    const storedVersion = localStorage.getItem(VERSION_KEY);
-    if (storedVersion !== String(DATA_VERSION)) {
-      // 마이그레이션: 기존 데이터 보존하며 새 필드 추가
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const rawParsed = JSON.parse(stored) as Array<Record<string, unknown>>;
-        if (Array.isArray(rawParsed) && rawParsed.length > 0) {
-          const migrated: Member[] = rawParsed.map((raw) => {
-            const m = raw as unknown as Member;
-            const existingFamily = Array.isArray(m.familyMembers) ? m.familyMembers : [];
-            const legacyHead = (m as unknown as Record<string, unknown>).familyHead;
-            const familyMembers = existingFamily.length > 0
-              ? existingFamily
-              : (legacyHead && typeof legacyHead === "string" ? [legacyHead] : []);
-            return {
-              ...m,
-              familyMembers,
-              carNumber: m.carNumber ?? null,
-              prayerRequests: Array.isArray(m.prayerRequests) ? m.prayerRequests : [],
-              pastoralVisits: Array.isArray(m.pastoralVisits) ? m.pastoralVisits : [],
-            };
-          });
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
-          localStorage.setItem(VERSION_KEY, String(DATA_VERSION));
-          return migrated;
-        }
-      }
-      localStorage.setItem(VERSION_KEY, String(DATA_VERSION));
-      return [...sampleMembers];
-    }
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored) as Member[];
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    }
-  } catch {
-    // ignore parse errors
-  }
-  try {
-    localStorage.setItem(VERSION_KEY, String(DATA_VERSION));
-  } catch {
-    // ignore
-  }
-  return [...sampleMembers];
-}
-
-function saveToStorage(data: Member[]) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    localStorage.setItem(VERSION_KEY, String(DATA_VERSION));
-  } catch {
-    // ignore storage errors (quota exceeded, etc.)
-  }
-}
-
-let members: Member[] = loadFromStorage();
+// ─── in-memory store ────────────────────────────────────────────────────────
+let members: Member[] = [];
 let listeners: Array<() => void> = [];
 
 // ─── 동기화 상태 ────────────────────────────────────────────────────────────
@@ -97,7 +34,7 @@ function isPending() {
   return fullSyncTimer !== null || memberSyncTimers.size > 0;
 }
 
-// 전체 배열 PUT — 교인 추가/삭제/일괄 작업 시
+// 전체 배열 PUT — 교인 추가/삭제/일괄 작업 시 (bulk import/restore)
 function scheduleSync() {
   if (typeof window === "undefined") return;
   if (fullSyncTimer) clearTimeout(fullSyncTimer);
@@ -137,12 +74,12 @@ function scheduleMemberSync(memberId: string) {
         });
         if (!res.ok) {
           if (res.status === 401) notifySyncError(true);
-          else scheduleSync(); // PATCH 실패 시 전체 PUT 폴백
+          // PATCH 실패 시 재시도 없이 에러만 기록 (DB PATCH는 멱등적이므로 재시도 불필요)
         } else {
           notifySyncError(false);
         }
       } catch {
-        scheduleSync(); // 네트워크 오류 시 전체 PUT 폴백
+        // 네트워크 오류 — 다음 폴링 사이클에서 서버 상태로 덮어써질 수 있음
       }
     }
     if (!isPending()) notifySyncStatus(false);
@@ -152,7 +89,6 @@ function scheduleMemberSync(memberId: string) {
 
 export function syncNow(): void {
   if (typeof window === "undefined") return;
-  // 대기 중인 타이머 모두 취소 후 전체 PUT
   if (fullSyncTimer) { clearTimeout(fullSyncTimer); fullSyncTimer = null; }
   memberSyncTimers.forEach((t) => clearTimeout(t));
   memberSyncTimers.clear();
@@ -166,12 +102,11 @@ export function syncNow(): void {
     .catch(() => notifySyncStatus(false));
 }
 
-// 서버에서 최신 데이터 불러오기 (중복 호출 방지)
+// ─── 서버 초기화 / 폴링 ────────────────────────────────────────────────────
 let fetchInProgress = false;
 let lastFetchAt = 0;
-const MIN_FETCH_INTERVAL = 1_500; // 1.5초 내 재호출 무시
+const MIN_FETCH_INTERVAL = 1_500;
 
-// 서버에서 실제로 새 데이터를 받아왔을 때 알림 (다른 기기 업데이트 감지)
 let serverUpdateListeners: Array<() => void> = [];
 
 export function subscribeServerUpdate(listener: () => void) {
@@ -179,7 +114,7 @@ export function subscribeServerUpdate(listener: () => void) {
   return () => { serverUpdateListeners = serverUpdateListeners.filter((l) => l !== listener); };
 }
 
-export async function initFromServer(force = false): Promise<void> {
+export async function initFromServer(_force = false): Promise<void> {
   if (typeof window === "undefined") return;
   const now = Date.now();
   if (fetchInProgress || now - lastFetchAt < MIN_FETCH_INTERVAL) return;
@@ -188,58 +123,51 @@ export async function initFromServer(force = false): Promise<void> {
   try {
     const res = await fetch("/api/members", { cache: "no-store" });
     if (!res.ok) return;
-    const data = await res.json();
-    if (!data?.members?.length) return;
+    const data = await res.json() as { members?: Member[]; exportedAt?: string } | null;
+    if (!data?.members || !Array.isArray(data.members)) return;
 
-    const serverTime = new Date(data.exportedAt).getTime();
-    const localModified = parseInt(localStorage.getItem("gwanak-last-modified") ?? "0");
-
-    // force=true: 폴링이 새 버전을 감지했을 때 → 타임스탬프 비교 없이 무조건 적용
-    // force=false: 탭 전환 등 일반 초기화 → 로컬이 더 최신이면 스킵
-    if (force || serverTime > localModified) {
-      members = data.members;
-      saveToStorage(members);
-      localStorage.setItem("gwanak-last-modified", String(serverTime));
-      for (const listener of listeners) listener();
-      for (const listener of serverUpdateListeners) listener();
-    }
+    members = data.members;
+    for (const listener of listeners) listener();
+    for (const listener of serverUpdateListeners) listener();
   } catch {
-    // 서버 연결 실패 시 localStorage 유지
+    // 서버 연결 실패 시 in-memory 유지
   } finally {
     fetchInProgress = false;
   }
 }
 
 // 버전 타임스탬프만 확인 후 변경된 경우에만 전체 데이터 로드 — 폴링 비용 최소화
-let lastKnownServerUploadedAt = "";
+let lastKnownServerUpdatedAt = "";
 
 export async function pollForChanges(): Promise<void> {
   if (typeof window === "undefined") return;
   try {
     const res = await fetch("/api/members/version", { cache: "no-store" });
     if (!res.ok) return;
-    const data = await res.json() as { uploadedAt?: string } | null;
-    if (!data?.uploadedAt) return;
+    const data = await res.json() as { updatedAt?: string } | null;
+    if (!data?.updatedAt) return;
 
-    // 이미 알고 있는 버전이면 전체 로드 스킵
-    if (data.uploadedAt === lastKnownServerUploadedAt) return;
+    if (data.updatedAt === lastKnownServerUpdatedAt) return;
 
-    lastKnownServerUploadedAt = data.uploadedAt;
-    await initFromServer(true); // 새 버전 감지됨 → 강제 적용
+    lastKnownServerUpdatedAt = data.updatedAt;
+    // 강제 재로드 (MIN_FETCH_INTERVAL 우회)
+    fetchInProgress = false;
+    lastFetchAt = 0;
+    await initFromServer(true);
   } catch {
     // 네트워크 오류 무시
   }
 }
 
+// ─── notify ────────────────────────────────────────────────────────────────
 // memberId 있으면 교인 1명 PATCH, 없으면 전체 PUT (추가/삭제/일괄)
 function notify(memberId?: string) {
-  saveToStorage(members);
-  localStorage.setItem("gwanak-last-modified", String(Date.now()));
   if (memberId) scheduleMemberSync(memberId);
   else scheduleSync();
   for (const listener of listeners) listener();
 }
 
+// ─── 공개 API (동기) ────────────────────────────────────────────────────────
 export function getMembers(): Member[] {
   return members;
 }
@@ -262,6 +190,7 @@ export function addMember(data: MemberFormData): Member {
     updatedAt: now,
   };
   members = [newMember, ...members];
+  // 신규 교인은 PATCH가 아닌 bulk PUT (id가 DB에 없으므로)
   notify();
   return newMember;
 }
@@ -303,14 +232,18 @@ export function deleteMember(id: string): boolean {
   const before = members.length;
   members = members.filter((m) => m.id !== id);
   if (members.length < before) {
-    notify();
+    // DELETE API 직접 호출 (PUT upsert는 삭제를 표현할 수 없음)
+    if (typeof window !== "undefined") {
+      fetch(`/api/members/${id}`, { method: "DELETE" }).catch(() => undefined);
+    }
+    for (const listener of listeners) listener();
     return true;
   }
   return false;
 }
 
 export function resetMembers(): void {
-  members = [...sampleMembers];
+  members = [];
   notify();
 }
 
@@ -320,12 +253,14 @@ export function addPrayerRequest(memberId: string, content: string): Member | nu
   const existing = members[index];
   if (!existing) return null;
 
+  const newRequest: PrayerRequest = {
+    id: crypto.randomUUID(),
+    content,
+    createdAt: new Date().toISOString(),
+  };
   const updated: Member = {
     ...existing,
-    prayerRequests: [
-      { id: crypto.randomUUID(), content, createdAt: new Date().toISOString() },
-      ...existing.prayerRequests,
-    ],
+    prayerRequests: [newRequest, ...existing.prayerRequests],
     updatedAt: new Date().toISOString(),
   };
   members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
@@ -355,12 +290,15 @@ export function addPastoralVisit(memberId: string, visitedAt: string, content: s
   const existing = members[index];
   if (!existing) return null;
 
+  const newVisit: PastoralVisit = {
+    id: crypto.randomUUID(),
+    visitedAt,
+    content,
+    createdAt: new Date().toISOString(),
+  };
   const updated: Member = {
     ...existing,
-    pastoralVisits: [
-      { id: crypto.randomUUID(), visitedAt, content, createdAt: new Date().toISOString() },
-      ...existing.pastoralVisits,
-    ],
+    pastoralVisits: [newVisit, ...existing.pastoralVisits],
     updatedAt: new Date().toISOString(),
   };
   members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
@@ -380,7 +318,7 @@ export function deletePastoralVisit(memberId: string, visitId: string): Member |
     updatedAt: new Date().toISOString(),
   };
   members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
-  notify();
+  notify(memberId);
   return updated;
 }
 
@@ -431,7 +369,7 @@ export function bulkAddPrayerRequests(
     const existingContents = new Set(m.prayerRequests.map((r) => r.content.trim()));
     const newRequests = entry.prayers
       .filter((p) => !existingContents.has(p.content.trim()))
-      .map((p) => ({
+      .map((p): PrayerRequest => ({
         id: crypto.randomUUID(),
         content: p.content,
         createdAt: p.createdAt === "미기재" ? now : p.createdAt,
@@ -447,11 +385,9 @@ export function bulkAddPrayerRequests(
   return { totalAdded };
 }
 
-
-const PRAYER_IMPORT_VERSION_KEY = "gwanak-prayer-import-version";
-
 export async function autoApplyPrayerImport(): Promise<void> {
   if (typeof window === "undefined") return;
+  const PRAYER_IMPORT_VERSION_KEY = "gwanak-prayer-import-version";
   try {
     const res = await fetch("/data/prayer-import.json");
     if (!res.ok) return;

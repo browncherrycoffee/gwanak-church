@@ -1,24 +1,28 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { put, list, del } from "@vercel/blob";
+import { eq, sql } from "drizzle-orm";
 import { verifyAuthToken } from "@/lib/auth";
+import { db } from "@/db";
+import { members } from "@/db/schema";
 import type { Member } from "@/types";
 
 export const dynamic = "force-dynamic";
 
-const BLOB_TOKEN = process.env.BLOB_READ_WRITE_TOKEN!;
-const BLOB_PREFIX = "gwanak-members-backup";
+async function requireAuth(): Promise<boolean> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("gwanak-auth")?.value;
+  if (!token) return false;
+  return verifyAuthToken(token);
+}
 
-// 교인 1명만 원자적으로 업데이트 — 동시 편집 충돌 최소화
+// 교인 1명 원자적 업데이트
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
 
-  const cookieStore = await cookies();
-  const token = cookieStore.get("gwanak-auth")?.value;
-  if (!token || !(await verifyAuthToken(token))) {
+  if (!(await requireAuth())) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 
@@ -28,62 +32,72 @@ export async function PATCH(
       return NextResponse.json({ ok: false }, { status: 400 });
     }
 
-    // 최신 blob 읽기
-    const { blobs } = await list({ token: BLOB_TOKEN, prefix: BLOB_PREFIX });
-    if (blobs.length === 0) {
-      return NextResponse.json({ ok: false, error: "no data" }, { status: 404 });
-    }
+    const result = await db
+      .update(members)
+      .set({
+        name: member.name,
+        phone: member.phone ?? null,
+        address: member.address ?? null,
+        detailAddress: member.detailAddress ?? null,
+        birthDate: member.birthDate ?? null,
+        gender: member.gender ?? null,
+        position: member.position ?? null,
+        department: member.department ?? null,
+        district: member.district ?? null,
+        familyMembers: Array.isArray(member.familyMembers) ? member.familyMembers : [],
+        familyHead: member.familyHead ?? null,
+        relationship: member.relationship ?? null,
+        baptismDate: member.baptismDate ?? null,
+        baptismType: member.baptismType ?? null,
+        baptismChurch: member.baptismChurch ?? null,
+        registrationDate: member.registrationDate ?? null,
+        memberJoinDate: member.memberJoinDate ?? null,
+        carNumber: member.carNumber ?? null,
+        notes: member.notes ?? null,
+        photoUrl: member.photoUrl ?? null,
+        memberStatus: member.memberStatus || "활동",
+        prayerRequests: Array.isArray(member.prayerRequests) ? member.prayerRequests : [],
+        pastoralVisits: Array.isArray(member.pastoralVisits) ? member.pastoralVisits : [],
+        updatedAt: sql`NOW()`,
+      })
+      .where(eq(members.id, id))
+      .returning({ id: members.id });
 
-    const latest = blobs.sort(
-      (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime(),
-    )[0]!;
-
-    const res = await fetch(latest.url, { cache: "no-store" });
-    const data = (await res.json()) as {
-      version: number;
-      exportedAt: string;
-      members: Member[];
-    };
-
-    if (!Array.isArray(data?.members)) {
-      return NextResponse.json({ ok: false }, { status: 500 });
-    }
-
-    // 해당 교인만 교체 (나머지는 그대로)
-    const idx = data.members.findIndex((m) => m.id === id);
-    if (idx === -1) {
+    if (result.length === 0) {
       return NextResponse.json({ ok: false, error: "not found" }, { status: 404 });
-    }
-    data.members[idx] = member;
-
-    const payload = {
-      version: data.version ?? 1,
-      exportedAt: new Date().toISOString(),
-      count: data.members.length,
-      members: data.members,
-    };
-
-    await put(BLOB_PREFIX, JSON.stringify(payload), {
-      access: "public",
-      token: BLOB_TOKEN,
-      contentType: "application/json",
-    });
-
-    // 오래된 blob 정리 (최신 3개 유지)
-    try {
-      const { blobs: all } = await list({ token: BLOB_TOKEN, prefix: BLOB_PREFIX });
-      if (all.length > 3) {
-        const old = all
-          .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())
-          .slice(3);
-        await Promise.all(old.map((b) => del(b.url, { token: BLOB_TOKEN })));
-      }
-    } catch {
-      // 정리 실패는 무시
     }
 
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (err) {
+    console.error("[PATCH /api/members/[id]]", err);
+    return NextResponse.json({ ok: false }, { status: 500 });
+  }
+}
+
+// 교인 삭제
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+
+  if (!(await requireAuth())) {
+    return NextResponse.json({ ok: false }, { status: 401 });
+  }
+
+  try {
+    const result = await db
+      .delete(members)
+      .where(eq(members.id, id))
+      .returning({ id: members.id });
+
+    if (result.length === 0) {
+      return NextResponse.json({ ok: false, error: "not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("[DELETE /api/members/[id]]", err);
     return NextResponse.json({ ok: false }, { status: 500 });
   }
 }
