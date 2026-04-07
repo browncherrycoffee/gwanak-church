@@ -34,18 +34,20 @@ function isPending() {
   return fullSyncTimer !== null || memberSyncTimers.size > 0;
 }
 
-// 전체 배열 PUT — 교인 추가/삭제/일괄 작업 시 (bulk import/restore)
+// 전체 배열 PUT — 교인 추가/수정/삭제 시
 function scheduleSync() {
   if (typeof window === "undefined") return;
   if (fullSyncTimer) clearTimeout(fullSyncTimer);
   notifySyncStatus(true);
+  // 스냅샷: 타이머 등록 시점의 데이터를 캡처 — pollForChanges가 덮어쓰더라도 원래 수정 내용 보존
+  const snapshot = [...members];
   fullSyncTimer = setTimeout(async () => {
     fullSyncTimer = null;
     try {
       const res = await fetch("/api/members", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(members),
+        body: JSON.stringify(snapshot),
       });
       if (!res.ok && res.status === 401) notifySyncError(true);
       else notifySyncError(false);
