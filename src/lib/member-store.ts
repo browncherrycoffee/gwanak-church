@@ -35,14 +35,19 @@ function isPending() {
 }
 
 // 전체 배열 PUT — 교인 추가/수정/삭제 시
+let pendingSnapshot: Member[] | null = null;
+
 function scheduleSync() {
   if (typeof window === "undefined") return;
   if (fullSyncTimer) clearTimeout(fullSyncTimer);
   notifySyncStatus(true);
   // 스냅샷: 타이머 등록 시점의 데이터를 캡처 — pollForChanges가 덮어쓰더라도 원래 수정 내용 보존
-  const snapshot = [...members];
+  pendingSnapshot = [...members];
   fullSyncTimer = setTimeout(async () => {
     fullSyncTimer = null;
+    const snapshot = pendingSnapshot;
+    pendingSnapshot = null;
+    if (!snapshot) return;
     try {
       const res = await fetch("/api/members", {
         method: "PUT",
@@ -63,16 +68,19 @@ function scheduleSync() {
   }, 1000);
 }
 
-
+// beforeunload 등 즉시 동기화 — 대기 중인 스냅샷 우선 사용
 export function syncNow(): void {
   if (typeof window === "undefined") return;
   if (fullSyncTimer) { clearTimeout(fullSyncTimer); fullSyncTimer = null; }
   memberSyncTimers.forEach((t) => clearTimeout(t));
   memberSyncTimers.clear();
+  // pendingSnapshot이 있으면 사용 (수정 내용 보존), 없으면 현재 members
+  const data = pendingSnapshot || members;
+  pendingSnapshot = null;
   fetch("/api/members", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(members),
+    body: JSON.stringify(data),
     keepalive: true,
   })
     .then(() => notifySyncStatus(false))
