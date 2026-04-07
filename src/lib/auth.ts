@@ -31,7 +31,7 @@ export async function verifyAuthToken(token: string): Promise<boolean> {
   if (!timestamp || !signature) return false;
 
   const age = Date.now() - Number(timestamp);
-  if (Number.isNaN(age) || age < 0 || age > 7 * 24 * 60 * 60 * 1000) return false;
+  if (Number.isNaN(age) || age < 0 || age > 30 * 24 * 60 * 60 * 1000) return false;
 
   const expected = await hmacSha256(getSecret(), timestamp);
 

@@ -491,3 +491,30 @@ export function subscribe(listener: () => void) {
     listeners = listeners.filter((l) => l !== listener);
   };
 }
+
+// 현재 기기의 전체 데이터를 서버에 강제 업로드 (데이터 복구용)
+export async function forceSyncToServer(): Promise<{ ok: boolean; count: number }> {
+  if (typeof window === "undefined") return { ok: false, count: 0 };
+  if (fullSyncTimer) { clearTimeout(fullSyncTimer); fullSyncTimer = null; }
+  memberSyncTimers.forEach((t) => clearTimeout(t));
+  memberSyncTimers.clear();
+  notifySyncStatus(true);
+  try {
+    const res = await fetch("/api/members", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(members),
+    });
+    if (!res.ok) {
+      if (res.status === 401) notifySyncError(true);
+      notifySyncStatus(false);
+      return { ok: false, count: 0 };
+    }
+    notifySyncError(false);
+    notifySyncStatus(false);
+    return { ok: true, count: members.length };
+  } catch {
+    notifySyncStatus(false);
+    return { ok: false, count: 0 };
+  }
+}

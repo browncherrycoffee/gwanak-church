@@ -17,7 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { getMembers, subscribe, replaceMembers } from "@/lib/member-store";
+import { getMembers, subscribe, replaceMembers, forceSyncToServer } from "@/lib/member-store";
 import { exportMembersJson } from "@/lib/export";
 import type { Member } from "@/types";
 
@@ -91,6 +91,10 @@ export default function BackupPage() {
   const [serverLoading, setServerLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [serverSaved, setServerSaved] = useState(false);
+
+  // 강제 동기화 상태
+  const [forceSyncing, setForceSyncing] = useState(false);
+  const [forceSyncResult, setForceSyncResult] = useState<{ ok: boolean; count: number } | null>(null);
 
   // 서버 백업 정보 조회
   useEffect(() => {
@@ -227,6 +231,45 @@ export default function BackupPage() {
       </header>
 
       <main className="mx-auto max-w-3xl px-4 py-8 space-y-6">
+        {/* 즉시 서버 동기화 */}
+        <Card className="border-primary/30">
+          <CardContent className="p-5">
+            <h2 className="text-sm font-semibold mb-1">이 기기 데이터 서버에 즉시 동기화</h2>
+            <p className="text-xs text-muted-foreground mb-4">
+              이 기기에 저장된 최신 교적 데이터를 서버에 강제로 업로드합니다.
+              다른 기기에서 수정된 내용을 덮어쓸 수 있으니, 가장 최신 데이터가 있는 기기에서만 실행하세요.
+            </p>
+            <Button
+              onClick={async () => {
+                setForceSyncing(true);
+                setForceSyncResult(null);
+                const result = await forceSyncToServer();
+                setForceSyncResult(result);
+                setForceSyncing(false);
+              }}
+              disabled={forceSyncing}
+              variant="outline"
+              className="gap-2 border-primary text-primary hover:bg-primary/5"
+            >
+              {forceSyncing ? (
+                <CircleNotch weight="bold" className="h-4 w-4 animate-spin" />
+              ) : (
+                <CloudArrowUp weight="light" className="h-4 w-4" />
+              )}
+              {forceSyncing ? "동기화 중..." : `${members.length}명 데이터 서버에 올리기`}
+            </Button>
+            {forceSyncResult && (
+              <div className={`mt-3 flex items-center gap-2 rounded-lg p-3 text-sm ${forceSyncResult.ok ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"}`}>
+                {forceSyncResult.ok ? (
+                  <><CheckCircle weight="light" className="h-4 w-4 shrink-0" />{forceSyncResult.count}명 데이터가 서버에 저장되었습니다.</>
+                ) : (
+                  <><Warning weight="light" className="h-4 w-4 shrink-0" />저장 실패 — 관리자로 로그인 후 다시 시도하세요.</>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* 현재 상태 */}
         <Card>
           <CardContent className="p-5">
