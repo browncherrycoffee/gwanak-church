@@ -16,7 +16,7 @@ export function ServerSync() {
   const [pending, setPending] = useState(false);
   const [justSynced, setJustSynced] = useState(false);
   const [remoteUpdated, setRemoteUpdated] = useState(false);
-  const [syncError, setSyncError] = useState(false);
+  const [syncError, setSyncError] = useState<string | false>(false);
 
   useEffect(() => {
     // 첫 로드 시 서버 데이터 초기화
@@ -47,7 +47,7 @@ export function ServerSync() {
     // 저장 오류 (로그인 필요 등)
     const unsubError = subscribeSyncError((err) => {
       setSyncError(err);
-      if (err) setTimeout(() => setSyncError(false), 6000);
+      if (err) setTimeout(() => setSyncError(false), 8000);
     });
 
     // 다른 기기에서 업데이트된 경우 알림
@@ -68,6 +68,14 @@ export function ServerSync() {
 
   if (!pending && !justSynced && !remoteUpdated && !syncError) return null;
 
+  const errorMessage = syncError === "auth"
+    ? "저장 실패 — 다시 로그인 필요"
+    : syncError === "network"
+    ? "저장 실패 — 네트워크 오류 (재시도 후 실패)"
+    : syncError
+    ? "저장 실패"
+    : null;
+
   return (
     <div
       className={`fixed bottom-6 right-4 z-50 flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium shadow-lg transition-all ${
@@ -83,7 +91,7 @@ export function ServerSync() {
       {syncError ? (
         <>
           <WarningCircle weight="bold" className="h-4 w-4" />
-          <span>저장 실패 — 다시 로그인 필요</span>
+          <span>{errorMessage}</span>
         </>
       ) : pending ? (
         <>

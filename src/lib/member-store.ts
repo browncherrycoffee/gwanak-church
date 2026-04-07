@@ -11,14 +11,14 @@ let dirty = false; // 로컬 수정 대기 중 — true이면 pollForChanges/ini
 let fullSyncTimer: ReturnType<typeof setTimeout> | null = null;
 const memberSyncTimers = new Map<string, ReturnType<typeof setTimeout>>();
 let syncListeners: Array<(pending: boolean) => void> = [];
-let syncErrorListeners: Array<(hasError: boolean) => void> = [];
+let syncErrorListeners: Array<(error: string | false) => void> = [];
 
 export function subscribeSyncStatus(listener: (pending: boolean) => void) {
   syncListeners = [...syncListeners, listener];
   return () => { syncListeners = syncListeners.filter((l) => l !== listener); };
 }
 
-export function subscribeSyncError(listener: (hasError: boolean) => void) {
+export function subscribeSyncError(listener: (error: string | false) => void) {
   syncErrorListeners = [...syncErrorListeners, listener];
   return () => { syncErrorListeners = syncErrorListeners.filter((l) => l !== listener); };
 }
@@ -27,8 +27,8 @@ function notifySyncStatus(pending: boolean) {
   for (const l of syncListeners) l(pending);
 }
 
-function notifySyncError(hasError: boolean) {
-  for (const l of syncErrorListeners) l(hasError);
+function notifySyncError(error: string | false) {
+  for (const l of syncErrorListeners) l(error);
 }
 
 function isPending() {
@@ -37,6 +37,44 @@ function isPending() {
 
 // 전체 배열 PUT — 교인 추가/수정/삭제 시
 let pendingSnapshot: Member[] | null = null;
+
+async function putWithRetry(snapshot: Member[], retries = 2): Promise<boolean> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch("/api/members", {
+        method: "PUT",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(snapshot),
+      });
+      if (res.ok) {
+        notifySyncError(false);
+        try {
+          const data = await res.json() as { updatedAt?: string };
+          if (data?.updatedAt) lastKnownServerUpdatedAt = data.updatedAt;
+        } catch { /* ignore parse error */ }
+        dirty = false;
+        return true;
+      }
+      // 401 = 인증 실패 → 재시도 의미 없음
+      if (res.status === 401) {
+        notifySyncError("auth");
+        console.error("[scheduleSync] PUT 401: 인증 만료");
+        dirty = false; // dirty 해제하여 initFromServer 차단 방지
+        return false;
+      }
+      // 그 외 오류 → 재시도
+      console.error(`[scheduleSync] PUT ${res.status} (attempt ${attempt + 1}/${retries + 1})`);
+      if (attempt < retries) await new Promise((r) => setTimeout(r, 2000));
+    } catch (err) {
+      console.error(`[scheduleSync] network error (attempt ${attempt + 1}/${retries + 1}):`, err);
+      if (attempt < retries) await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
+  notifySyncError("network");
+  dirty = false; // dirty 해제하여 시스템 복구 허용
+  return false;
+}
 
 function scheduleSync() {
   if (typeof window === "undefined") return;
@@ -50,28 +88,7 @@ function scheduleSync() {
     const snapshot = pendingSnapshot;
     pendingSnapshot = null;
     if (!snapshot) return;
-    try {
-      const res = await fetch("/api/members", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(snapshot),
-      });
-      if (!res.ok) {
-        notifySyncError(true);
-        console.error("[scheduleSync] PUT failed:", res.status, await res.text().catch(() => ""));
-      } else {
-        notifySyncError(false);
-        // PUT 성공 → 서버 타임스탬프 갱신하여 자기 변경 재폴링 방지
-        try {
-          const data = await res.json() as { updatedAt?: string };
-          if (data?.updatedAt) lastKnownServerUpdatedAt = data.updatedAt;
-        } catch { /* ignore parse error */ }
-        dirty = false;
-      }
-    } catch (err) {
-      notifySyncError(true);
-      console.error("[scheduleSync] network error:", err);
-    }
+    await putWithRetry(snapshot);
     if (!isPending()) notifySyncStatus(false);
   }, 1000);
 }
@@ -435,7 +452,7 @@ export async function forceSyncToServer(): Promise<{ ok: boolean; count: number 
       body: JSON.stringify(members),
     });
     if (!res.ok) {
-      if (res.status === 401) notifySyncError(true);
+      notifySyncError(res.status === 401 ? "auth" : "network");
       notifySyncStatus(false);
       return { ok: false, count: 0 };
     }
