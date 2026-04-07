@@ -109,14 +109,17 @@ async function handleUpdate(
 
     try {
       await doUpsert();
-    } catch {
+    } catch (innerErr) {
       // 동시 쓰기 충돌 시 한 번 재시도
+      console.error("[PATCH] upsert 1차 실패, 재시도:", innerErr);
       await doUpsert();
     }
 
     return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ ok: false }, { status: 500 });
+  } catch (outerErr) {
+    const errMsg = outerErr instanceof Error ? outerErr.message : String(outerErr);
+    console.error("[PATCH] upsert 최종 실패:", outerErr);
+    return NextResponse.json({ ok: false, error: errMsg.slice(0, 200) }, { status: 500 });
   }
 }
 
