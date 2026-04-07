@@ -67,7 +67,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ ok: true, count: 0 });
     }
 
-    const CHUNK = 50;
+    const CHUNK = 250;
     for (let i = 0; i < body.length; i += CHUNK) {
       const chunk = body.slice(i, i + CHUNK);
       const values = chunk.map((m) => ({

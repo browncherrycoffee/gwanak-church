@@ -38,15 +38,19 @@ function isPending() {
 // 전체 배열 PUT — 교인 추가/수정/삭제 시
 let pendingSnapshot: Member[] | null = null;
 
-async function putWithRetry(snapshot: Member[], retries = 2): Promise<boolean> {
+async function putWithRetry(snapshot: Member[], retries = 1): Promise<boolean> {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15_000); // 15초 타임아웃
       const res = await fetch("/api/members", {
         method: "PUT",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(snapshot),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
       if (res.ok) {
         notifySyncError(false);
         try {
@@ -59,20 +63,18 @@ async function putWithRetry(snapshot: Member[], retries = 2): Promise<boolean> {
       // 401 = 인증 실패 → 재시도 의미 없음
       if (res.status === 401) {
         notifySyncError("auth");
-        console.error("[scheduleSync] PUT 401: 인증 만료");
-        dirty = false; // dirty 해제하여 initFromServer 차단 방지
+        console.error("[sync] PUT 401: 인증 만료");
+        dirty = false;
         return false;
       }
-      // 그 외 오류 → 재시도
-      console.error(`[scheduleSync] PUT ${res.status} (attempt ${attempt + 1}/${retries + 1})`);
-      if (attempt < retries) await new Promise((r) => setTimeout(r, 2000));
+      console.error(`[sync] PUT ${res.status} (${attempt + 1}/${retries + 1})`);
     } catch (err) {
-      console.error(`[scheduleSync] network error (attempt ${attempt + 1}/${retries + 1}):`, err);
-      if (attempt < retries) await new Promise((r) => setTimeout(r, 2000));
+      console.error(`[sync] error (${attempt + 1}/${retries + 1}):`, err);
     }
+    if (attempt < retries) await new Promise((r) => setTimeout(r, 2000));
   }
   notifySyncError("network");
-  dirty = false; // dirty 해제하여 시스템 복구 허용
+  dirty = false;
   return false;
 }
 
