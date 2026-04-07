@@ -56,35 +56,6 @@ function scheduleSync() {
   }, 1000);
 }
 
-// 교인 1명 PATCH — 수정 시 다른 교인 데이터 덮어쓰기 방지
-function scheduleMemberSync(memberId: string) {
-  if (typeof window === "undefined") return;
-  const existing = memberSyncTimers.get(memberId);
-  if (existing) clearTimeout(existing);
-  notifySyncStatus(true);
-  const timer = setTimeout(async () => {
-    memberSyncTimers.delete(memberId);
-    const member = members.find((m) => m.id === memberId);
-    if (member) {
-      try {
-        const res = await fetch(`/api/members/${memberId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ member }),
-        });
-        if (!res.ok) {
-          if (res.status === 401) notifySyncError(true);
-        } else {
-          notifySyncError(false);
-        }
-      } catch {
-        // 네트워크 오류 무시
-      }
-    }
-    if (!isPending()) notifySyncStatus(false);
-  }, 1000);
-  memberSyncTimers.set(memberId, timer);
-}
 
 export function syncNow(): void {
   if (typeof window === "undefined") return;
@@ -158,9 +129,8 @@ export async function pollForChanges(): Promise<void> {
 }
 
 // ─── notify ────────────────────────────────────────────────────────────────
-function notify(memberId?: string) {
-  if (memberId) scheduleMemberSync(memberId);
-  else scheduleSync();
+function notify(_memberId?: string) {
+  scheduleSync();
   for (const listener of listeners) listener();
 }
 
