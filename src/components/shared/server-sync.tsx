@@ -19,52 +19,51 @@ export function ServerSync() {
   const [syncError, setSyncError] = useState<string | false>(false);
 
   useEffect(() => {
-    // 첫 로드 시 서버 데이터 초기화
     initFromServer().then(() => autoApplyPrayerImport());
 
-    // 탭/창 닫을 때 keepalive로 강제 동기화
+    // pagehide: iOS Safari에서도 안정적으로 발생 (beforeunload는 불안정)
     const handleUnload = () => syncNow();
+    window.addEventListener("pagehide", handleUnload);
     window.addEventListener("beforeunload", handleUnload);
 
-    // 탭/앱이 다시 활성화될 때 즉시 갱신 (PC 탭 전환, 모바일 앱 전환)
+    // 탭 활성화 시 최신 데이터 로드
     const handleVisibility = () => {
       if (document.visibilityState === "visible") initFromServer();
     };
     document.addEventListener("visibilitychange", handleVisibility);
 
-    // 2초마다 버전 체크 → 변경 있을 때만 전체 데이터 로드
+    // 2초마다 버전 폴링
     const poll = setInterval(() => pollForChanges(), 2_000);
 
-    // 로컬 저장 상태 구독
+    // 동기화 상태
     let pendingTimeout: ReturnType<typeof setTimeout> | null = null;
     const unsubSync = subscribeSyncStatus((p) => {
       setPending(p);
       if (pendingTimeout) { clearTimeout(pendingTimeout); pendingTimeout = null; }
       if (p) {
-        // 20초 안전장치 — 저장 중 상태가 영원히 남지 않도록
-        pendingTimeout = setTimeout(() => setPending(false), 20_000);
+        pendingTimeout = setTimeout(() => setPending(false), 30_000);
       } else {
         setJustSynced(true);
         setTimeout(() => setJustSynced(false), 3000);
       }
     });
 
-    // 저장 오류 (로그인 필요 등)
     const unsubError = subscribeSyncError((err) => {
       setSyncError(err);
-      if (err) setTimeout(() => setSyncError(false), 8000);
+      if (err) setTimeout(() => setSyncError(false), 10000);
     });
 
-    // 다른 기기에서 업데이트된 경우 알림
     const unsubRemote = subscribeServerUpdate(() => {
       setRemoteUpdated(true);
       setTimeout(() => setRemoteUpdated(false), 3000);
     });
 
     return () => {
+      window.removeEventListener("pagehide", handleUnload);
       window.removeEventListener("beforeunload", handleUnload);
       document.removeEventListener("visibilitychange", handleVisibility);
       clearInterval(poll);
+      if (pendingTimeout) clearTimeout(pendingTimeout);
       unsubSync();
       unsubError();
       unsubRemote();

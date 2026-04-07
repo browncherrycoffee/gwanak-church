@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { verifyAuthToken } from "@/lib/auth";
 import { db } from "@/db";
 import { members } from "@/db/schema";
-import { sql, notInArray } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import type { Member, PrayerRequest, PastoralVisit } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -49,11 +49,15 @@ export async function GET() {
     );
   } catch (err) {
     console.error("[GET /api/members]", err);
-    return NextResponse.json({ members: [], exportedAt: new Date().toISOString(), count: 0 });
+    return NextResponse.json(
+      { error: "DB 연결 실패", members: [], count: 0 },
+      { status: 500 },
+    );
   }
 }
 
-// bulk upsert — import / restore 용도
+// bulk upsert — import / restore / 신규 교인 추가 시
+// ⚠️ notInArray DELETE 제거 — 다른 기기 데이터 삭제 방지
 export async function PUT(request: Request) {
   try {
     const cookieStore = await cookies();
@@ -64,7 +68,7 @@ export async function PUT(request: Request) {
 
     const body = await request.json() as Member[];
     if (!Array.isArray(body) || body.length === 0) {
-      return NextResponse.json({ ok: true, count: 0 });
+      return NextResponse.json({ ok: true, count: 0, updatedAt: new Date().toISOString() });
     }
 
     const CHUNK = 250;
@@ -132,10 +136,6 @@ export async function PUT(request: Request) {
           },
         });
     }
-
-    // 전송된 배열에 없는 교인 삭제 (삭제 동기화)
-    const ids = body.map((m) => m.id);
-    await db.delete(members).where(notInArray(members.id, ids));
 
     return NextResponse.json({ ok: true, count: body.length, updatedAt: new Date().toISOString() });
   } catch (err) {
