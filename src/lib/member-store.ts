@@ -54,7 +54,7 @@ function schedulePatch(memberId: string) {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 10_000);
       const res = await fetch(`/api/members/${memberId}`, {
-        method: "PATCH",
+        method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ member }),
@@ -64,7 +64,7 @@ function schedulePatch(memberId: string) {
 
       if (res.ok) {
         notifySyncError(false);
-        // PATCH 후 version 타임스탬프 갱신 (자기 변경 재폴링 방지)
+        // 버전 타임스탬프 갱신 (자기 변경 재폴링 방지)
         try {
           const vRes = await fetch("/api/members/version", { cache: "no-store" });
           if (vRes.ok) {
@@ -75,12 +75,14 @@ function schedulePatch(memberId: string) {
       } else if (res.status === 401) {
         notifySyncError("auth");
       } else {
-        console.error(`[sync] PATCH ${memberId} → ${res.status}`);
-        notifySyncError("network");
+        const body = await res.text().catch(() => "");
+        console.error(`[sync] POST ${memberId} → ${res.status}`, body);
+        notifySyncError(`server-${res.status}`);
       }
     } catch (err) {
-      console.error(`[sync] PATCH ${memberId} error:`, err);
-      notifySyncError("network");
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[sync] POST ${memberId} error:`, msg);
+      notifySyncError(`fetch-${msg.slice(0, 50)}`);
     }
 
     dirty = !isPending();
@@ -125,11 +127,12 @@ function scheduleFullSync() {
         notifySyncError("auth");
       } else {
         console.error(`[sync] PUT → ${res.status}`);
-        notifySyncError("network");
+        notifySyncError(`put-${res.status}`);
       }
     } catch (err) {
-      console.error("[sync] PUT error:", err);
-      notifySyncError("network");
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[sync] PUT error:", msg);
+      notifySyncError(`put-${msg.slice(0, 50)}`);
     }
 
     dirty = false;

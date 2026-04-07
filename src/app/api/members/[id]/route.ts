@@ -9,9 +9,24 @@ import type { Member } from "@/types";
 export const dynamic = "force-dynamic";
 
 // 교인 1명만 원자적으로 업데이트 — 동시 편집 충돌 최소화
+// POST도 허용 (모바일 네트워크 호환성)
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  return handleUpdate(request, params);
+}
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
+) {
+  return handleUpdate(request, params);
+}
+
+async function handleUpdate(
+  request: Request,
+  params: Promise<{ id: string }>,
 ) {
   const { id } = await params;
 

@@ -75,10 +75,8 @@ export function ServerSync() {
 
   const errorMessage = syncError === "auth"
     ? "저장 실패 — 다시 로그인 필요"
-    : syncError === "network"
-    ? "저장 실패 — 네트워크 오류 (재시도 후 실패)"
     : syncError
-    ? "저장 실패"
+    ? `저장 실패 [${syncError}]`
     : null;
 
   return (
