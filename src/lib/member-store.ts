@@ -49,10 +49,15 @@ function scheduleSync() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(snapshot),
       });
-      if (!res.ok && res.status === 401) notifySyncError(true);
-      else notifySyncError(false);
-    } catch {
-      // 네트워크 오류 무시
+      if (!res.ok) {
+        notifySyncError(true);
+        console.error("[scheduleSync] PUT failed:", res.status, await res.text().catch(() => ""));
+      } else {
+        notifySyncError(false);
+      }
+    } catch (err) {
+      notifySyncError(true);
+      console.error("[scheduleSync] network error:", err);
     }
     if (!isPending()) notifySyncStatus(false);
   }, 1000);
