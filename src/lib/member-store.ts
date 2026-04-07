@@ -198,10 +198,8 @@ export function deleteMember(id: string): boolean {
   const before = members.length;
   members = members.filter((m) => m.id !== id);
   if (members.length < before) {
-    if (typeof window !== "undefined") {
-      fetch(`/api/members/${id}`, { method: "DELETE" }).catch(() => undefined);
-    }
     for (const listener of listeners) listener();
+    scheduleSync(); // 삭제 후 전체 PUT → 다른 기기 pollForChanges 감지됨
     return true;
   }
   return false;

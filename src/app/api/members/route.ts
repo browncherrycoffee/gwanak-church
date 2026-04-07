@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { verifyAuthToken } from "@/lib/auth";
 import { db } from "@/db";
 import { members } from "@/db/schema";
-import { sql } from "drizzle-orm";
+import { sql, notInArray } from "drizzle-orm";
 import type { Member, PrayerRequest, PastoralVisit } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -132,6 +132,10 @@ export async function PUT(request: Request) {
           },
         });
     }
+
+    // 전송된 배열에 없는 교인 삭제 (삭제 동기화)
+    const ids = body.map((m) => m.id);
+    await db.delete(members).where(notInArray(members.id, ids));
 
     return NextResponse.json({ ok: true, count: body.length });
   } catch (err) {
