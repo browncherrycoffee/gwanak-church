@@ -42,40 +42,68 @@ async function handleUpdate(
       return NextResponse.json({ ok: false }, { status: 400 });
     }
 
-    const result = await db
-      .update(members)
-      .set({
-        name: member.name,
-        gender: member.gender ?? null,
-        birthDate: member.birthDate ?? null,
-        phone: member.phone ?? null,
-        address: member.address ?? null,
-        detailAddress: member.detailAddress ?? null,
-        department: member.department ?? null,
-        district: member.district ?? null,
-        position: member.position ?? null,
-        familyHead: member.familyHead ?? null,
-        relationship: member.relationship ?? null,
-        baptismType: member.baptismType ?? null,
-        registrationDate: member.registrationDate ?? null,
-        carNumber: member.carNumber ?? null,
-        memberStatus: member.memberStatus ?? "활동",
-        baptismDate: member.baptismDate ?? null,
-        baptismChurch: member.baptismChurch ?? null,
-        memberJoinDate: member.memberJoinDate ?? null,
-        photoUrl: member.photoUrl ?? null,
-        notes: member.notes ?? null,
-        familyMembers: member.familyMembers ?? [],
-        prayerRequests: member.prayerRequests ?? [],
-        pastoralVisits: member.pastoralVisits ?? [],
-        updatedAt: sql`NOW()`,
-      })
-      .where(eq(members.id, id))
-      .returning({ id: members.id });
+    const values = {
+      id: member.id,
+      name: member.name,
+      gender: member.gender ?? null,
+      birthDate: member.birthDate ?? null,
+      phone: member.phone ?? null,
+      address: member.address ?? null,
+      detailAddress: member.detailAddress ?? null,
+      department: member.department ?? null,
+      district: member.district ?? null,
+      position: member.position ?? null,
+      familyHead: member.familyHead ?? null,
+      relationship: member.relationship ?? null,
+      baptismType: member.baptismType ?? null,
+      registrationDate: member.registrationDate ?? null,
+      carNumber: member.carNumber ?? null,
+      memberStatus: member.memberStatus ?? "활동",
+      baptismDate: member.baptismDate ?? null,
+      baptismChurch: member.baptismChurch ?? null,
+      memberJoinDate: member.memberJoinDate ?? null,
+      photoUrl: member.photoUrl ?? null,
+      notes: member.notes ?? null,
+      familyMembers: member.familyMembers ?? [],
+      prayerRequests: member.prayerRequests ?? [],
+      pastoralVisits: member.pastoralVisits ?? [],
+      createdAt: member.createdAt ? new Date(member.createdAt) : new Date(),
+      updatedAt: new Date(),
+    };
 
-    if (result.length === 0) {
-      return NextResponse.json({ ok: false, error: "not found" }, { status: 404 });
-    }
+    // upsert: 없으면 INSERT, 있으면 UPDATE (새 교인 추가도 지원)
+    await db
+      .insert(members)
+      .values(values)
+      .onConflictDoUpdate({
+        target: members.id,
+        set: {
+          name: sql`excluded.name`,
+          gender: sql`excluded.gender`,
+          birthDate: sql`excluded.birth_date`,
+          phone: sql`excluded.phone`,
+          address: sql`excluded.address`,
+          detailAddress: sql`excluded.detail_address`,
+          department: sql`excluded.department`,
+          district: sql`excluded.district`,
+          position: sql`excluded.position`,
+          familyHead: sql`excluded.family_head`,
+          relationship: sql`excluded.relationship`,
+          baptismType: sql`excluded.baptism_type`,
+          registrationDate: sql`excluded.registration_date`,
+          carNumber: sql`excluded.car_number`,
+          memberStatus: sql`excluded.member_status`,
+          baptismDate: sql`excluded.baptism_date`,
+          baptismChurch: sql`excluded.baptism_church`,
+          memberJoinDate: sql`excluded.member_join_date`,
+          photoUrl: sql`excluded.photo_url`,
+          notes: sql`excluded.notes`,
+          familyMembers: sql`excluded.family_members`,
+          prayerRequests: sql`excluded.prayer_requests`,
+          pastoralVisits: sql`excluded.pastoral_visits`,
+          updatedAt: sql`NOW()`,
+        },
+      });
 
     return NextResponse.json({ ok: true });
   } catch {
