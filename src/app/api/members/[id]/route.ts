@@ -119,7 +119,7 @@ async function handleUpdate(
   } catch (outerErr) {
     const errMsg = outerErr instanceof Error ? outerErr.message : String(outerErr);
     console.error("[PATCH] upsert 최종 실패:", outerErr);
-    return NextResponse.json({ ok: false, error: errMsg.slice(0, 200) }, { status: 500 });
+    return NextResponse.json({ ok: false, error: errMsg.slice(0, 500) }, { status: 500 });
   }
 }
 
