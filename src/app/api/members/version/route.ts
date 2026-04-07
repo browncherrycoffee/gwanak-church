@@ -1,25 +1,26 @@
 import { NextResponse } from "next/server";
-import { list } from "@vercel/blob";
+import { db } from "@/db";
+import { members } from "@/db/schema";
+import { sql } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
-const BLOB_TOKEN = process.env.BLOB_READ_WRITE_TOKEN!;
-const BLOB_PREFIX = "gwanak-members-backup";
-
-// 전체 데이터 없이 최신 버전 타임스탬프만 반환 — 폴링 비용 최소화
+// 전체 데이터 없이 최신 updated_at 타임스탬프만 반환 — 폴링 비용 최소화
 export async function GET() {
   try {
-    const { blobs } = await list({ token: BLOB_TOKEN, prefix: BLOB_PREFIX });
-    if (blobs.length === 0) return NextResponse.json(null);
-    const latest = blobs.sort(
-      (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime(),
-    )[0];
+    const result = await db
+      .select({ latest: sql<string>`MAX(${members.updatedAt})` })
+      .from(members);
+
+    const latest = result[0]?.latest;
     if (!latest) return NextResponse.json(null);
+
     return NextResponse.json(
-      { uploadedAt: latest.uploadedAt.toISOString() },
+      { updatedAt: new Date(latest).toISOString() },
       { headers: { "Cache-Control": "no-store" } },
     );
-  } catch {
+  } catch (err) {
+    console.error("[GET /api/members/version]", err);
     return NextResponse.json(null);
   }
 }
