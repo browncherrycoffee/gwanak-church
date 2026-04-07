@@ -7,6 +7,7 @@ let members: Member[] = [];
 let listeners: Array<() => void> = [];
 
 // ─── 동기화 상태 ────────────────────────────────────────────────────────────
+let dirty = false; // 로컬 수정 대기 중 — true이면 pollForChanges/initFromServer가 서버 데이터로 덮어쓰지 않음
 let fullSyncTimer: ReturnType<typeof setTimeout> | null = null;
 const memberSyncTimers = new Map<string, ReturnType<typeof setTimeout>>();
 let syncListeners: Array<(pending: boolean) => void> = [];
@@ -40,6 +41,7 @@ let pendingSnapshot: Member[] | null = null;
 function scheduleSync() {
   if (typeof window === "undefined") return;
   if (fullSyncTimer) clearTimeout(fullSyncTimer);
+  dirty = true; // 로컬 수정 발생 — 서버 폴링으로 덮어쓰기 방지
   notifySyncStatus(true);
   // 스냅샷: 타이머 등록 시점의 데이터를 캡처 — pollForChanges가 덮어쓰더라도 원래 수정 내용 보존
   pendingSnapshot = [...members];
@@ -59,6 +61,12 @@ function scheduleSync() {
         console.error("[scheduleSync] PUT failed:", res.status, await res.text().catch(() => ""));
       } else {
         notifySyncError(false);
+        // PUT 성공 → 서버 타임스탬프 갱신하여 자기 변경 재폴링 방지
+        try {
+          const data = await res.json() as { updatedAt?: string };
+          if (data?.updatedAt) lastKnownServerUpdatedAt = data.updatedAt;
+        } catch { /* ignore parse error */ }
+        dirty = false;
       }
     } catch (err) {
       notifySyncError(true);
@@ -71,12 +79,14 @@ function scheduleSync() {
 // beforeunload 등 즉시 동기화 — 대기 중인 스냅샷 우선 사용
 export function syncNow(): void {
   if (typeof window === "undefined") return;
+  if (!dirty && !fullSyncTimer && memberSyncTimers.size === 0) return; // 보낼 변경 없음
   if (fullSyncTimer) { clearTimeout(fullSyncTimer); fullSyncTimer = null; }
   memberSyncTimers.forEach((t) => clearTimeout(t));
   memberSyncTimers.clear();
   // pendingSnapshot이 있으면 사용 (수정 내용 보존), 없으면 현재 members
   const data = pendingSnapshot || members;
   pendingSnapshot = null;
+  dirty = false;
   fetch("/api/members", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -101,6 +111,8 @@ export function subscribeServerUpdate(listener: () => void) {
 
 export async function initFromServer(_force = false): Promise<void> {
   if (typeof window === "undefined") return;
+  // 로컬 수정 대기 중이면 서버 데이터로 덮어쓰지 않음 (레이스 컨디션 방지)
+  if (dirty) return;
   const now = Date.now();
   if (fetchInProgress || now - lastFetchAt < MIN_FETCH_INTERVAL) return;
   fetchInProgress = true;
@@ -110,6 +122,9 @@ export async function initFromServer(_force = false): Promise<void> {
     if (!res.ok) return;
     const data = await res.json() as { members?: Member[]; exportedAt?: string } | null;
     if (!data?.members || !Array.isArray(data.members) || data.members.length === 0) return;
+
+    // PUT 진행 중에 fetch가 끝난 경우에도 보호
+    if (dirty) return;
 
     members = data.members;
     for (const listener of listeners) listener();
@@ -425,6 +440,11 @@ export async function forceSyncToServer(): Promise<{ ok: boolean; count: number 
       return { ok: false, count: 0 };
     }
     notifySyncError(false);
+    dirty = false;
+    try {
+      const data = await res.json() as { updatedAt?: string };
+      if (data?.updatedAt) lastKnownServerUpdatedAt = data.updatedAt;
+    } catch { /* ignore */ }
     notifySyncStatus(false);
     return { ok: true, count: members.length };
   } catch {

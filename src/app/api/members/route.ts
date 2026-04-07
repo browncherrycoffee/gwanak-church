@@ -137,7 +137,7 @@ export async function PUT(request: Request) {
     const ids = body.map((m) => m.id);
     await db.delete(members).where(notInArray(members.id, ids));
 
-    return NextResponse.json({ ok: true, count: body.length });
+    return NextResponse.json({ ok: true, count: body.length, updatedAt: new Date().toISOString() });
   } catch (err) {
     console.error("[PUT /api/members]", err);
     return NextResponse.json({ ok: false }, { status: 500 });
