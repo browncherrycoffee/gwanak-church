@@ -7,9 +7,9 @@ let members: Member[] = [];
 let listeners: Array<() => void> = [];
 
 // ─── 동기화 상태 ────────────────────────────────────────────────────────────
-let dirty = false; // 로컬 수정 대기 중 — true이면 pollForChanges/initFromServer가 서버 데이터로 덮어쓰지 않음
+let dirty = false;
 let fullSyncTimer: ReturnType<typeof setTimeout> | null = null;
-const memberSyncTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const patchTimers = new Map<string, ReturnType<typeof setTimeout>>();
 let syncListeners: Array<(pending: boolean) => void> = [];
 let syncErrorListeners: Array<(error: string | false) => void> = [];
 
@@ -32,17 +32,80 @@ function notifySyncError(error: string | false) {
 }
 
 function isPending() {
-  return fullSyncTimer !== null || memberSyncTimers.size > 0;
+  return fullSyncTimer !== null || patchTimers.size > 0;
 }
 
-// 전체 배열 PUT — 교인 추가/수정/삭제 시
-let pendingSnapshot: Member[] | null = null;
+// ─── 개별 교인 PATCH (~2KB) ─────────────────────────────────────────────────
+function schedulePatch(memberId: string) {
+  if (typeof window === "undefined") return;
+  dirty = true;
+  notifySyncStatus(true);
 
-async function putWithRetry(snapshot: Member[], retries = 1): Promise<boolean> {
-  for (let attempt = 0; attempt <= retries; attempt++) {
+  // 같은 교인 연속 수정 시 debounce
+  const existing = patchTimers.get(memberId);
+  if (existing) clearTimeout(existing);
+
+  patchTimers.set(memberId, setTimeout(async () => {
+    patchTimers.delete(memberId);
+    const member = members.find((m) => m.id === memberId);
+    if (!member) { if (!isPending()) { dirty = false; notifySyncStatus(false); } return; }
+
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15_000); // 15초 타임아웃
+      const timeout = setTimeout(() => controller.abort(), 10_000);
+      const res = await fetch(`/api/members/${memberId}`, {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ member }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (res.ok) {
+        notifySyncError(false);
+        // PATCH 후 version 타임스탬프 갱신 (자기 변경 재폴링 방지)
+        try {
+          const vRes = await fetch("/api/members/version", { cache: "no-store" });
+          if (vRes.ok) {
+            const vData = await vRes.json() as { updatedAt?: string } | null;
+            if (vData?.updatedAt) lastKnownServerUpdatedAt = vData.updatedAt;
+          }
+        } catch { /* ignore */ }
+      } else if (res.status === 401) {
+        notifySyncError("auth");
+      } else {
+        console.error(`[sync] PATCH ${memberId} → ${res.status}`);
+        notifySyncError("network");
+      }
+    } catch (err) {
+      console.error(`[sync] PATCH ${memberId} error:`, err);
+      notifySyncError("network");
+    }
+
+    dirty = !isPending();
+    if (!isPending()) { dirty = false; notifySyncStatus(false); }
+  }, 500));
+}
+
+// ─── 전체 PUT (추가/삭제/bulk 전용) ─────────────────────────────────────────
+let pendingSnapshot: Member[] | null = null;
+
+function scheduleFullSync() {
+  if (typeof window === "undefined") return;
+  if (fullSyncTimer) clearTimeout(fullSyncTimer);
+  dirty = true;
+  notifySyncStatus(true);
+  pendingSnapshot = [...members];
+  fullSyncTimer = setTimeout(async () => {
+    fullSyncTimer = null;
+    const snapshot = pendingSnapshot;
+    pendingSnapshot = null;
+    if (!snapshot) { if (!isPending()) { dirty = false; notifySyncStatus(false); } return; }
+
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15_000);
       const res = await fetch("/api/members", {
         method: "PUT",
         credentials: "same-origin",
@@ -51,58 +114,36 @@ async function putWithRetry(snapshot: Member[], retries = 1): Promise<boolean> {
         signal: controller.signal,
       });
       clearTimeout(timeout);
+
       if (res.ok) {
         notifySyncError(false);
         try {
           const data = await res.json() as { updatedAt?: string };
           if (data?.updatedAt) lastKnownServerUpdatedAt = data.updatedAt;
-        } catch { /* ignore parse error */ }
-        dirty = false;
-        return true;
-      }
-      // 401 = 인증 실패 → 재시도 의미 없음
-      if (res.status === 401) {
+        } catch { /* ignore */ }
+      } else if (res.status === 401) {
         notifySyncError("auth");
-        console.error("[sync] PUT 401: 인증 만료");
-        dirty = false;
-        return false;
+      } else {
+        console.error(`[sync] PUT → ${res.status}`);
+        notifySyncError("network");
       }
-      console.error(`[sync] PUT ${res.status} (${attempt + 1}/${retries + 1})`);
     } catch (err) {
-      console.error(`[sync] error (${attempt + 1}/${retries + 1}):`, err);
+      console.error("[sync] PUT error:", err);
+      notifySyncError("network");
     }
-    if (attempt < retries) await new Promise((r) => setTimeout(r, 2000));
-  }
-  notifySyncError("network");
-  dirty = false;
-  return false;
-}
 
-function scheduleSync() {
-  if (typeof window === "undefined") return;
-  if (fullSyncTimer) clearTimeout(fullSyncTimer);
-  dirty = true; // 로컬 수정 발생 — 서버 폴링으로 덮어쓰기 방지
-  notifySyncStatus(true);
-  // 스냅샷: 타이머 등록 시점의 데이터를 캡처 — pollForChanges가 덮어쓰더라도 원래 수정 내용 보존
-  pendingSnapshot = [...members];
-  fullSyncTimer = setTimeout(async () => {
-    fullSyncTimer = null;
-    const snapshot = pendingSnapshot;
-    pendingSnapshot = null;
-    if (!snapshot) return;
-    await putWithRetry(snapshot);
+    dirty = false;
     if (!isPending()) notifySyncStatus(false);
   }, 1000);
 }
 
-// beforeunload 등 즉시 동기화 — 대기 중인 스냅샷 우선 사용
+// beforeunload 등 즉시 동기화
 export function syncNow(): void {
   if (typeof window === "undefined") return;
-  if (!dirty && !fullSyncTimer && memberSyncTimers.size === 0) return; // 보낼 변경 없음
+  if (!dirty && !fullSyncTimer && patchTimers.size === 0) return;
   if (fullSyncTimer) { clearTimeout(fullSyncTimer); fullSyncTimer = null; }
-  memberSyncTimers.forEach((t) => clearTimeout(t));
-  memberSyncTimers.clear();
-  // pendingSnapshot이 있으면 사용 (수정 내용 보존), 없으면 현재 members
+  patchTimers.forEach((t) => clearTimeout(t));
+  patchTimers.clear();
   const data = pendingSnapshot || members;
   pendingSnapshot = null;
   dirty = false;
@@ -130,7 +171,6 @@ export function subscribeServerUpdate(listener: () => void) {
 
 export async function initFromServer(_force = false): Promise<void> {
   if (typeof window === "undefined") return;
-  // 로컬 수정 대기 중이면 서버 데이터로 덮어쓰지 않음 (레이스 컨디션 방지)
   if (dirty) return;
   const now = Date.now();
   if (fetchInProgress || now - lastFetchAt < MIN_FETCH_INTERVAL) return;
@@ -141,8 +181,6 @@ export async function initFromServer(_force = false): Promise<void> {
     if (!res.ok) return;
     const data = await res.json() as { members?: Member[]; exportedAt?: string } | null;
     if (!data?.members || !Array.isArray(data.members) || data.members.length === 0) return;
-
-    // PUT 진행 중에 fetch가 끝난 경우에도 보호
     if (dirty) return;
 
     members = data.members;
@@ -155,11 +193,11 @@ export async function initFromServer(_force = false): Promise<void> {
   }
 }
 
-// 버전 타임스탬프만 확인 후 변경된 경우에만 전체 데이터 로드 — 폴링 비용 최소화
 let lastKnownServerUpdatedAt = "";
 
 export async function pollForChanges(): Promise<void> {
   if (typeof window === "undefined") return;
+  if (dirty) return; // 로컬 수정 중에는 폴링 스킵
   try {
     const res = await fetch("/api/members/version", { cache: "no-store" });
     if (!res.ok) return;
@@ -175,12 +213,6 @@ export async function pollForChanges(): Promise<void> {
   } catch {
     // 네트워크 오류 무시
   }
-}
-
-// ─── notify ────────────────────────────────────────────────────────────────
-function notify(_memberId?: string) {
-  scheduleSync();
-  for (const listener of listeners) listener();
 }
 
 // ─── 공개 API ────────────────────────────────────────────────────────────
@@ -206,7 +238,8 @@ export function addMember(data: MemberFormData): Member {
     updatedAt: now,
   };
   members = [newMember, ...members];
-  notify();
+  scheduleFullSync();
+  for (const listener of listeners) listener();
   return newMember;
 }
 
@@ -222,7 +255,8 @@ export function updateMember(id: string, data: Partial<MemberFormData>): Member 
     updatedAt: new Date().toISOString(),
   };
   members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
-  notify(id);
+  schedulePatch(id);
+  for (const listener of listeners) listener();
   return updated;
 }
 
@@ -239,7 +273,8 @@ export function toggleMemberStatus(id: string): Member | null {
     updatedAt: new Date().toISOString(),
   };
   members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
-  notify(id);
+  schedulePatch(id);
+  for (const listener of listeners) listener();
   return updated;
 }
 
@@ -247,8 +282,18 @@ export function deleteMember(id: string): boolean {
   const before = members.length;
   members = members.filter((m) => m.id !== id);
   if (members.length < before) {
+    // DELETE 엔드포인트 직접 호출
+    dirty = true;
+    notifySyncStatus(true);
+    fetch(`/api/members/${id}`, { method: "DELETE", credentials: "same-origin" })
+      .then((res) => {
+        if (res.ok) { notifySyncError(false); }
+        else if (res.status === 401) { notifySyncError("auth"); }
+        else { notifySyncError("network"); }
+      })
+      .catch(() => notifySyncError("network"))
+      .finally(() => { dirty = false; notifySyncStatus(false); });
     for (const listener of listeners) listener();
-    scheduleSync(); // 삭제 후 전체 PUT → 다른 기기 pollForChanges 감지됨
     return true;
   }
   return false;
@@ -256,7 +301,8 @@ export function deleteMember(id: string): boolean {
 
 export function resetMembers(): void {
   members = [];
-  notify();
+  scheduleFullSync();
+  for (const listener of listeners) listener();
 }
 
 export function addPrayerRequest(memberId: string, content: string): Member | null {
@@ -276,7 +322,8 @@ export function addPrayerRequest(memberId: string, content: string): Member | nu
     updatedAt: new Date().toISOString(),
   };
   members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
-  notify(memberId);
+  schedulePatch(memberId);
+  for (const listener of listeners) listener();
   return updated;
 }
 
@@ -292,7 +339,8 @@ export function deletePrayerRequest(memberId: string, requestId: string): Member
     updatedAt: new Date().toISOString(),
   };
   members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
-  notify(memberId);
+  schedulePatch(memberId);
+  for (const listener of listeners) listener();
   return updated;
 }
 
@@ -314,7 +362,8 @@ export function addPastoralVisit(memberId: string, visitedAt: string, content: s
     updatedAt: new Date().toISOString(),
   };
   members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
-  notify(memberId);
+  schedulePatch(memberId);
+  for (const listener of listeners) listener();
   return updated;
 }
 
@@ -330,7 +379,8 @@ export function deletePastoralVisit(memberId: string, visitId: string): Member |
     updatedAt: new Date().toISOString(),
   };
   members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
-  notify(memberId);
+  schedulePatch(memberId);
+  for (const listener of listeners) listener();
   return updated;
 }
 
@@ -348,7 +398,8 @@ export function updatePrayerRequest(memberId: string, requestId: string, content
     updatedAt: new Date().toISOString(),
   };
   members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
-  notify(memberId);
+  schedulePatch(memberId);
+  for (const listener of listeners) listener();
   return updated;
 }
 
@@ -366,7 +417,8 @@ export function updatePastoralVisit(memberId: string, visitId: string, visitedAt
     updatedAt: new Date().toISOString(),
   };
   members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
-  notify(memberId);
+  schedulePatch(memberId);
+  for (const listener of listeners) listener();
   return updated;
 }
 
@@ -393,7 +445,10 @@ export function bulkAddPrayerRequests(
     );
     return { ...m, prayerRequests: merged, updatedAt: now };
   });
-  if (totalAdded > 0) notify();
+  if (totalAdded > 0) {
+    scheduleFullSync();
+    for (const listener of listeners) listener();
+  }
   return { totalAdded };
 }
 
@@ -430,7 +485,8 @@ export async function autoApplyPrayerImport(): Promise<void> {
 
 export function replaceMembers(newMembers: Member[]): void {
   members = newMembers;
-  notify();
+  scheduleFullSync();
+  for (const listener of listeners) listener();
 }
 
 export function subscribe(listener: () => void) {
@@ -444,8 +500,8 @@ export function subscribe(listener: () => void) {
 export async function forceSyncToServer(): Promise<{ ok: boolean; count: number }> {
   if (typeof window === "undefined") return { ok: false, count: 0 };
   if (fullSyncTimer) { clearTimeout(fullSyncTimer); fullSyncTimer = null; }
-  memberSyncTimers.forEach((t) => clearTimeout(t));
-  memberSyncTimers.clear();
+  patchTimers.forEach((t) => clearTimeout(t));
+  patchTimers.clear();
   notifySyncStatus(true);
   try {
     const res = await fetch("/api/members", {
