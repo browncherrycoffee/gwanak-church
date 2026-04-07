@@ -31,8 +31,29 @@ function notifySyncError(error: string | false) {
   for (const l of syncErrorListeners) l(error);
 }
 
+// ─── 재시도 큐 (네트워크 실패 시 자동 재시도) ─────────────────────────────────
+const retryQueue = new Map<string, number>(); // memberId → retry count
+const MAX_RETRIES = 3;
+const RETRY_DELAYS = [2_000, 5_000, 10_000]; // exponential backoff
+
 function isDirty() {
-  return pendingPatches.size > 0 || fullSyncTimer !== null || patchTimers.size > 0;
+  return pendingPatches.size > 0 || fullSyncTimer !== null || patchTimers.size > 0 || retryQueue.size > 0;
+}
+
+function scheduleRetry(memberId: string) {
+  const count = (retryQueue.get(memberId) ?? 0) + 1;
+  if (count > MAX_RETRIES) {
+    retryQueue.delete(memberId);
+    console.error(`[sync] ${memberId}: ${MAX_RETRIES}회 재시도 실패, 포기`);
+    return;
+  }
+  retryQueue.set(memberId, count);
+  const delay = RETRY_DELAYS[count - 1] ?? 10_000;
+  console.info(`[sync] ${memberId}: ${delay}ms 후 재시도 (${count}/${MAX_RETRIES})`);
+  setTimeout(() => {
+    retryQueue.delete(memberId);
+    schedulePatch(memberId);
+  }, delay);
 }
 
 // ─── 개별 교인 POST (~5KB, 500ms) ──────────────────────────────────────────
@@ -67,18 +88,22 @@ function schedulePatch(memberId: string) {
 
       if (res.ok) {
         notifySyncError(false);
-        // version 갱신을 하지 않음 — pollForChanges가 자연스럽게 다른 기기 변경도 감지하도록
+        retryQueue.delete(memberId);
       } else if (res.status === 401) {
         notifySyncError("auth");
       } else {
         const body = await res.text().catch(() => "");
         console.error(`[sync] POST ${memberId} → ${res.status}`, body);
         notifySyncError(`server-${res.status}`);
+        // 서버 에러 시 재시도
+        if (res.status >= 500) scheduleRetry(memberId);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`[sync] POST ${memberId}:`, msg);
       notifySyncError(`fetch-${msg.slice(0, 50)}`);
+      // 네트워크 에러 시 재시도
+      scheduleRetry(memberId);
     }
 
     pendingPatches.delete(memberId);
@@ -223,9 +248,10 @@ export function getMember(id: string): Member | undefined {
 
 export function addMember(data: MemberFormData): Member {
   const now = new Date().toISOString();
+  const normalized = normalizeData(data);
   const newMember: Member = {
     id: crypto.randomUUID(),
-    ...data,
+    ...normalized,
     familyMembers: data.familyMembers ?? [],
     memberStatus: data.memberStatus || "활동",
     carNumber: data.carNumber || null,
@@ -241,6 +267,15 @@ export function addMember(data: MemberFormData): Member {
   return newMember;
 }
 
+// 빈 문자열을 null로 정규화 (폼에서 빈 입력 시 일관성 보장)
+function normalizeData<T extends object>(data: T): T {
+  const result = { ...data } as Record<string, unknown>;
+  for (const key of Object.keys(result)) {
+    if (result[key] === "") result[key] = null;
+  }
+  return result as T;
+}
+
 export function updateMember(id: string, data: Partial<MemberFormData>): Member | null {
   const index = members.findIndex((m) => m.id === id);
   if (index === -1) return null;
@@ -249,7 +284,7 @@ export function updateMember(id: string, data: Partial<MemberFormData>): Member 
 
   const updated: Member = {
     ...existing,
-    ...data,
+    ...normalizeData(data),
     updatedAt: new Date().toISOString(),
   };
   members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
