@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { put } from "@vercel/blob";
+import { verifyAuthToken } from "@/lib/auth";
 import { db } from "@/db";
 import { members } from "@/db/schema";
 import { sql } from "drizzle-orm";
@@ -8,10 +10,21 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 // 수동 또는 예약 백업 — 날짜별 스냅샷 저장
-// CRON_SECRET 또는 gwanak-auth 쿠키로 인증
+// CRON_SECRET(Vercel Cron) 또는 gwanak-auth 쿠키(수동)로 인증
 export async function GET(request: Request) {
+  // Vercel Cron 인증
   const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const isCron = authHeader === `Bearer ${process.env.CRON_SECRET}`;
+
+  // 관리자 쿠키 인증 (수동 백업용)
+  let isCookieAuth = false;
+  if (!isCron) {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("gwanak-auth")?.value;
+    isCookieAuth = !!token && await verifyAuthToken(token);
+  }
+
+  if (!isCron && !isCookieAuth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
