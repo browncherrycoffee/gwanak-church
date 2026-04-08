@@ -117,9 +117,16 @@ async function handleUpdate(
 
     return NextResponse.json({ ok: true });
   } catch (outerErr) {
+    // postgres.js 에러: message에 쿼리+params 포함, cause에 실제 에러
+    const err = outerErr as Record<string, unknown>;
+    const code = err?.code ?? "";
+    const detail = err?.detail ?? "";
+    const hint = err?.hint ?? "";
     const errMsg = outerErr instanceof Error ? outerErr.message : String(outerErr);
+    // 쿼리 부분 제거하고 에러 원인만 추출
+    const shortMsg = errMsg.includes("\n") ? errMsg.split("\n").pop() : errMsg;
     console.error("[PATCH] upsert 최종 실패:", outerErr);
-    return NextResponse.json({ ok: false, error: errMsg.slice(0, 2000) }, { status: 500 });
+    return NextResponse.json({ ok: false, error: shortMsg?.slice(0, 500), code, detail, hint }, { status: 500 });
   }
 }
 
