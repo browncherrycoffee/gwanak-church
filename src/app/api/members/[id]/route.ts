@@ -118,21 +118,9 @@ async function handleUpdate(
     return NextResponse.json({ ok: true });
   } catch (outerErr) {
     const err = outerErr as Record<string, unknown>;
-    // postgres.js 에러 속성 전부 수집
-    const info = {
-      name: err?.name,
-      code: err?.code,
-      severity: err?.severity,
-      detail: err?.detail,
-      constraint: err?.constraint,
-      column: err?.column,
-      table: err?.table,
-      routine: err?.routine,
-      cause: err?.cause ? String(err.cause).slice(0, 200) : undefined,
-      keys: Object.keys(err ?? {}),
-    };
-    console.error("[PATCH] upsert 최종 실패:", outerErr);
-    return NextResponse.json({ ok: false, ...info }, { status: 500 });
+    const cause = err?.cause ? String(err.cause).slice(0, 200) : undefined;
+    console.error("[PATCH] upsert 실패:", cause ?? outerErr);
+    return NextResponse.json({ ok: false, error: cause }, { status: 500 });
   }
 }
 

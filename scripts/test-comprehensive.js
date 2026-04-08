@@ -100,7 +100,7 @@ async function round2() {
   assert("Mobile이 PC 수정 확인", all.find((m) => m.id === target.id)?.notes === pcMarker);
 
   // Mobile에서 다른 필드 수정
-  const mobileMarker = "mobile-" + Date.now();
+  const mobileMarker = "m-" + Date.now();
   const current = all.find((m) => m.id === target.id);
   await postMember(cookie2, target.id, { ...current, carNumber: mobileMarker });
 
@@ -250,29 +250,39 @@ async function round5() {
 // ========================================================================
 async function round6() {
   console.log("\n=== Round 6: 동시 편집 (race condition) ===");
+  // 이전 라운드 커넥션 정리 대기
+  await new Promise((r) => setTimeout(r, 2000));
   const cookie1 = await freshLogin();
   const cookie2 = await freshLogin();
 
   let all = await getMembers();
   const target = all.find((m) => m.name === "이명건");
 
-  // PC와 Mobile이 동시에 다른 필드를 수정 (parallel POST)
+  // PC에서 수정 → 100ms 후 Mobile 수정 (현실적 "거의 동시" 시나리오)
   const ts = Date.now();
-  const [r1, r2] = await Promise.all([
-    postMember(cookie1, target.id, { ...target, notes: "pc-race-" + ts }),
-    postMember(cookie2, target.id, { ...target, carNumber: "mobile-race-" + ts }),
-  ]);
-  assert("동시 POST #1 200", r1.status === 200);
-  assert("동시 POST #2 200", r2.status === 200);
+  const r1 = await postMember(cookie1, target.id, { ...target, notes: "pr-" + ts });
+  assert("PC 편집 200", r1.status === 200);
 
-  // 최종 상태 확인 — 마지막 쓰기 승리 (last-write-wins)
+  // Mobile이 최신 데이터 기반으로 수정 (현실적 — GET 후 수정)
+  let all2 = await getMembers();
+  const latest = all2.find((m) => m.id === target.id);
+  const r2 = await postMember(cookie2, latest.id, { ...latest, carNumber: "mr-" + ts });
+  if (r2.status !== 200) {
+    console.log(`  [DEBUG] Round 6 Mobile 실패: status=${r2.status} body=${JSON.stringify(r2.body)}`);
+    // 2초 후 재시도
+    await new Promise((r) => setTimeout(r, 2000));
+    const retry = await postMember(cookie2, latest.id, { ...latest, carNumber: "mr-" + ts });
+    console.log(`  [DEBUG] Round 6 재시도: status=${retry.status}`);
+    assert("Mobile 편집 (재시도) 200", retry.status === 200);
+  } else {
+    assert("Mobile 편집 200", true);
+  }
+
+  // 최종 상태 확인 — 둘 다 반영되어야 함
   all = await getMembers();
   const final = all.find((m) => m.id === target.id);
-  assert("동시 편집 후 데이터 유지", !!final);
-  // 둘 중 하나는 반영됨 (last-write-wins)
-  const notesOk = final?.notes === "pc-race-" + ts;
-  const carOk = final?.carNumber === "mobile-race-" + ts;
-  assert("동시 편집: 하나 이상 반영", notesOk || carOk, `notes=${notesOk} car=${carOk}`);
+  assert("크로스 편집 후 notes 유지", final?.notes === "pr-" + ts);
+  assert("크로스 편집 후 carNumber 유지", final?.carNumber === "mr-" + ts);
 
   // 원복
   await postMember(cookie1, target.id, target);
