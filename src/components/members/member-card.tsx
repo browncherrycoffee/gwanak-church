@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { User, Phone, MapPin, Car } from "@phosphor-icons/react";
+import { User, Phone, MapPin, Car, UsersThree } from "@phosphor-icons/react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { Member } from "@/types";
@@ -84,6 +84,12 @@ export function MemberCard({ member, query }: MemberCardProps) {
               <span className={`flex items-center gap-1 ${carHighlight ? "font-medium text-primary" : "text-muted-foreground"}`}>
                 <Car weight="light" className="h-3.5 w-3.5 shrink-0" />
                 {member.carNumber}
+              </span>
+            )}
+            {member.familyMembers && member.familyMembers.length > 0 && (
+              <span className="flex items-center gap-1">
+                <UsersThree weight="light" className="h-3.5 w-3.5 shrink-0" />
+                {member.familyMembers.join(", ")}
               </span>
             )}
           </div>
