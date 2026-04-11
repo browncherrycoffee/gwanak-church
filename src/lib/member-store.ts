@@ -254,7 +254,9 @@ function normalizeNames(list: readonly string[] | undefined): string[] {
   return out;
 }
 
-// A의 가족 목록 변경 → 대응되는 교인의 가족 목록에 A의 이름을 거울 반영/제거
+// A의 가족 목록 변경 → cluster 클로저 반영
+// - cluster = {A} ∪ nextFamily: 이 안의 모든 쌍은 상호 가족으로 연결되어야 함
+// - 제거된 항목은 A ↔ 해당 항목 양방향 연결만 끊음 (다른 구성원 간 관계는 유지)
 // 반환: 변경된 교인 id 집합 (각 id에 대해 schedulePatch 실행 필요)
 function mirrorFamilyLinks(
   selfId: string,
@@ -267,29 +269,7 @@ function mirrorFamilyLinks(
   const prev = new Set(prevFamily);
   const next = new Set(nextFamily);
 
-  // 추가된 가족 → 해당 교인의 가족 목록에 selfName 추가
-  for (const name of next) {
-    if (prev.has(name)) continue;
-    if (name === selfName) continue; // 자기 자신은 가족으로 링크하지 않음
-    for (let i = 0; i < members.length; i++) {
-      const target = members[i];
-      if (!target || target.id === selfId) continue;
-      if (target.name !== name) continue;
-      if (target.familyMembers.includes(selfName)) {
-        touched.add(target.id); // 이미 포함되어 있어도 patch는 생략 가능하지만 안전하게 추가
-        continue;
-      }
-      const updated: Member = {
-        ...target,
-        familyMembers: [...target.familyMembers, selfName],
-        updatedAt: nowIso,
-      };
-      members = [...members.slice(0, i), updated, ...members.slice(i + 1)];
-      touched.add(target.id);
-    }
-  }
-
-  // 제거된 가족 → 해당 교인의 가족 목록에서 selfName 제거
+  // 1) 제거된 가족 → 해당 교인에서 selfName 제거
   for (const name of prev) {
     if (next.has(name)) continue;
     for (let i = 0; i < members.length; i++) {
@@ -304,6 +284,40 @@ function mirrorFamilyLinks(
       };
       members = [...members.slice(0, i), updated, ...members.slice(i + 1)];
       touched.add(target.id);
+    }
+  }
+
+  // 2) cluster 클로저: {self} ∪ nextFamily 안의 모든 교인이
+  //    서로를 familyMembers에 포함해야 함 (빠진 이름만 추가 — 기존 관계는 건드리지 않음)
+  if (nextFamily.length > 0) {
+    const cluster = new Set<string>(nextFamily);
+    cluster.add(selfName);
+
+    for (const memberName of cluster) {
+      if (memberName === selfName) continue; // self는 이미 저장됨
+      const others = [...cluster].filter((n) => n !== memberName);
+      if (others.length === 0) continue;
+
+      for (let i = 0; i < members.length; i++) {
+        const target = members[i];
+        if (!target || target.id === selfId) continue;
+        if (target.name !== memberName) continue;
+
+        const existingSet = new Set(target.familyMembers);
+        const additions: string[] = [];
+        for (const o of others) {
+          if (!existingSet.has(o)) additions.push(o);
+        }
+        if (additions.length === 0) continue;
+
+        const updated: Member = {
+          ...target,
+          familyMembers: [...target.familyMembers, ...additions],
+          updatedAt: nowIso,
+        };
+        members = [...members.slice(0, i), updated, ...members.slice(i + 1)];
+        touched.add(target.id);
+      }
     }
   }
 
