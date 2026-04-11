@@ -36,7 +36,8 @@ export default function HomePage() {
 
   const suggestions = useMemo(() => {
     if (!query.trim() || query.trim().length < 1) return [];
-    return searchMembers(members, query).slice(0, 5);
+    // 가족 단위 검색 시 10명 내외 가족도 드롭다운에서 모두 보이도록 여유 있게
+    return searchMembers(members, query).slice(0, 12);
   }, [members, query]);
 
   const handleSearch = useCallback(() => {
