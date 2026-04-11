@@ -710,6 +710,93 @@ export function subscribe(listener: () => void) {
   };
 }
 
+// 가족 관계 일괄 정비 — 각 교인의 familyMembers에 대해 cluster 클로저 적용
+// (snapshot 기반: 한 교인이 나열한 가족 목록 범위 안에서만 mutually 연결,
+//  다른 교인의 링크까지 전파하지는 않음 → 오류 확산 방지)
+// 반환: 변경된 교인 수
+export function normalizeFamilyLinks(): { touchedCount: number; addedLinks: number } {
+  if (typeof window === "undefined") return { touchedCount: 0, addedLinks: 0 };
+
+  // 1) snapshot: 현재 모든 교인의 familyMembers를 이름 집합으로 캡처
+  const snapshot = new Map<string, { name: string; family: Set<string> }>();
+  for (const m of members) {
+    snapshot.set(m.id, { name: m.name, family: new Set(m.familyMembers ?? []) });
+  }
+
+  // 2) 결과 기록용 맵 (id → 추가해야 할 이름 집합)
+  const additions = new Map<string, Set<string>>();
+  const ensureAdditionSet = (id: string) => {
+    let s = additions.get(id);
+    if (!s) {
+      s = new Set();
+      additions.set(id, s);
+    }
+    return s;
+  };
+
+  // 3) 이름 → id 인덱스
+  const nameToIds = new Map<string, string[]>();
+  for (const m of members) {
+    const list = nameToIds.get(m.name);
+    if (list) list.push(m.id);
+    else nameToIds.set(m.name, [m.id]);
+  }
+
+  // 4) 각 교인을 source로 삼아 cluster 클로저 계산 (snapshot 기반)
+  for (const [sourceId, snap] of snapshot) {
+    if (snap.family.size === 0) continue;
+    const cluster = new Set<string>(snap.family);
+    cluster.add(snap.name);
+
+    for (const memberName of cluster) {
+      if (memberName === snap.name) continue;
+      const others = [...cluster].filter((n) => n !== memberName);
+      const targetIds = nameToIds.get(memberName) ?? [];
+      for (const tid of targetIds) {
+        if (tid === sourceId) continue;
+        const targetSnap = snapshot.get(tid);
+        if (!targetSnap) continue;
+        for (const o of others) {
+          if (targetSnap.family.has(o)) continue;
+          if (o === targetSnap.name) continue;
+          ensureAdditionSet(tid).add(o);
+        }
+      }
+    }
+  }
+
+  // 5) 실제 members 배열에 반영 + 개별 patch
+  if (additions.size === 0) return { touchedCount: 0, addedLinks: 0 };
+
+  const now = new Date().toISOString();
+  let addedLinks = 0;
+  let touchedCount = 0;
+  for (const [id, toAdd] of additions) {
+    const idx = members.findIndex((m) => m.id === id);
+    if (idx === -1) continue;
+    const existing = members[idx];
+    if (!existing) continue;
+    const current = new Set(existing.familyMembers);
+    const fresh: string[] = [];
+    for (const n of toAdd) {
+      if (!current.has(n)) fresh.push(n);
+    }
+    if (fresh.length === 0) continue;
+    addedLinks += fresh.length;
+    touchedCount += 1;
+    const updated: Member = {
+      ...existing,
+      familyMembers: [...existing.familyMembers, ...fresh],
+      updatedAt: now,
+    };
+    members = [...members.slice(0, idx), updated, ...members.slice(idx + 1)];
+    schedulePatch(id);
+  }
+
+  for (const listener of listeners) listener();
+  return { touchedCount, addedLinks };
+}
+
 // 현재 기기의 전체 데이터를 서버에 강제 업로드 (데이터 복구용)
 export async function forceSyncToServer(): Promise<{ ok: boolean; count: number }> {
   if (typeof window === "undefined") return { ok: false, count: 0 };

@@ -17,7 +17,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { getMembers, subscribe, replaceMembers, forceSyncToServer } from "@/lib/member-store";
+import {
+  getMembers,
+  subscribe,
+  replaceMembers,
+  forceSyncToServer,
+  normalizeFamilyLinks,
+} from "@/lib/member-store";
 import { exportMembersJson } from "@/lib/export";
 import type { Member } from "@/types";
 
@@ -95,6 +101,12 @@ export default function BackupPage() {
   // 강제 동기화 상태
   const [forceSyncing, setForceSyncing] = useState(false);
   const [forceSyncResult, setForceSyncResult] = useState<{ ok: boolean; count: number } | null>(null);
+
+  // 가족 관계 정비 상태
+  const [familyNormalizing, setFamilyNormalizing] = useState(false);
+  const [familyNormalizeResult, setFamilyNormalizeResult] = useState<
+    { touchedCount: number; addedLinks: number } | null
+  >(null);
 
   // 서버 백업 정보 조회
   useEffect(() => {
@@ -265,6 +277,52 @@ export default function BackupPage() {
                 ) : (
                   <><Warning weight="light" className="h-4 w-4 shrink-0" />저장 실패 — 관리자로 로그인 후 다시 시도하세요.</>
                 )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 가족 관계 정비 */}
+        <Card>
+          <CardContent className="p-5">
+            <h2 className="text-sm font-semibold mb-1">가족 관계 정비</h2>
+            <p className="text-xs text-muted-foreground mb-4">
+              같은 가족 안에 있는 교인들이 서로의 가족 목록에 모두 등록되어 있도록 일괄
+              정비합니다. 누락된 링크만 추가하며, 기존에 등록된 가족은 그대로 유지됩니다.
+            </p>
+            <Button
+              onClick={async () => {
+                setFamilyNormalizing(true);
+                setFamilyNormalizeResult(null);
+                // UI가 반응할 시간을 주기 위해 미세 지연
+                await new Promise((r) => setTimeout(r, 10));
+                const result = normalizeFamilyLinks();
+                setFamilyNormalizeResult(result);
+                setFamilyNormalizing(false);
+              }}
+              disabled={familyNormalizing}
+              variant="outline"
+              className="gap-2"
+            >
+              {familyNormalizing ? (
+                <CircleNotch weight="bold" className="h-4 w-4 animate-spin" />
+              ) : (
+                <Database weight="light" className="h-4 w-4" />
+              )}
+              {familyNormalizing ? "정비 중..." : "가족 관계 일괄 정비"}
+            </Button>
+            {familyNormalizeResult && (
+              <div
+                className={`mt-3 flex items-center gap-2 rounded-lg p-3 text-sm ${
+                  familyNormalizeResult.touchedCount > 0
+                    ? "bg-primary/10 text-primary"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
+                <CheckCircle weight="light" className="h-4 w-4 shrink-0" />
+                {familyNormalizeResult.touchedCount > 0
+                  ? `${familyNormalizeResult.touchedCount}명 교정 · ${familyNormalizeResult.addedLinks}개 가족 링크 추가됨. 자동으로 서버에 저장됩니다.`
+                  : "모든 가족 관계가 이미 정상입니다."}
               </div>
             )}
           </CardContent>
