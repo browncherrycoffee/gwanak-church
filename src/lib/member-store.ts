@@ -237,6 +237,123 @@ export async function pollForChanges(): Promise<void> {
   }
 }
 
+// ─── 가족 양방향 동기화 헬퍼 ─────────────────────────────────────────────
+// 이름 기준 매칭 — 동명이인이 있을 경우 모두에게 거울 반영
+// (단, 상세 페이지의 Map(name→member) 특성상 동명이인은 현재도 한 명만 노출되므로
+//  이 한계를 확대하지는 않음)
+function normalizeNames(list: readonly string[] | undefined): string[] {
+  if (!Array.isArray(list)) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of list) {
+    const n = (raw ?? "").trim();
+    if (!n || seen.has(n)) continue;
+    seen.add(n);
+    out.push(n);
+  }
+  return out;
+}
+
+// A의 가족 목록 변경 → 대응되는 교인의 가족 목록에 A의 이름을 거울 반영/제거
+// 반환: 변경된 교인 id 집합 (각 id에 대해 schedulePatch 실행 필요)
+function mirrorFamilyLinks(
+  selfId: string,
+  selfName: string,
+  prevFamily: string[],
+  nextFamily: string[],
+  nowIso: string,
+): Set<string> {
+  const touched = new Set<string>();
+  const prev = new Set(prevFamily);
+  const next = new Set(nextFamily);
+
+  // 추가된 가족 → 해당 교인의 가족 목록에 selfName 추가
+  for (const name of next) {
+    if (prev.has(name)) continue;
+    if (name === selfName) continue; // 자기 자신은 가족으로 링크하지 않음
+    for (let i = 0; i < members.length; i++) {
+      const target = members[i];
+      if (!target || target.id === selfId) continue;
+      if (target.name !== name) continue;
+      if (target.familyMembers.includes(selfName)) {
+        touched.add(target.id); // 이미 포함되어 있어도 patch는 생략 가능하지만 안전하게 추가
+        continue;
+      }
+      const updated: Member = {
+        ...target,
+        familyMembers: [...target.familyMembers, selfName],
+        updatedAt: nowIso,
+      };
+      members = [...members.slice(0, i), updated, ...members.slice(i + 1)];
+      touched.add(target.id);
+    }
+  }
+
+  // 제거된 가족 → 해당 교인의 가족 목록에서 selfName 제거
+  for (const name of prev) {
+    if (next.has(name)) continue;
+    for (let i = 0; i < members.length; i++) {
+      const target = members[i];
+      if (!target || target.id === selfId) continue;
+      if (target.name !== name) continue;
+      if (!target.familyMembers.includes(selfName)) continue;
+      const updated: Member = {
+        ...target,
+        familyMembers: target.familyMembers.filter((n) => n !== selfName),
+        updatedAt: nowIso,
+      };
+      members = [...members.slice(0, i), updated, ...members.slice(i + 1)];
+      touched.add(target.id);
+    }
+  }
+
+  return touched;
+}
+
+// 이름이 변경되었을 때 — 다른 교인의 familyMembers에서 oldName을 newName으로 치환
+function renameInFamilies(
+  selfId: string,
+  oldName: string,
+  newName: string,
+  nowIso: string,
+): Set<string> {
+  const touched = new Set<string>();
+  if (!oldName || !newName || oldName === newName) return touched;
+  for (let i = 0; i < members.length; i++) {
+    const target = members[i];
+    if (!target || target.id === selfId) continue;
+    if (!target.familyMembers.includes(oldName)) continue;
+    // 중복 방지: 이미 newName이 들어 있으면 oldName만 제거
+    const hasNew = target.familyMembers.includes(newName);
+    const updatedList = hasNew
+      ? target.familyMembers.filter((n) => n !== oldName)
+      : target.familyMembers.map((n) => (n === oldName ? newName : n));
+    const updated: Member = { ...target, familyMembers: updatedList, updatedAt: nowIso };
+    members = [...members.slice(0, i), updated, ...members.slice(i + 1)];
+    touched.add(target.id);
+  }
+  return touched;
+}
+
+// 교인 삭제 시 — 다른 교인의 familyMembers에서 제거
+function removeFromFamilies(selfId: string, name: string, nowIso: string): Set<string> {
+  const touched = new Set<string>();
+  if (!name) return touched;
+  for (let i = 0; i < members.length; i++) {
+    const target = members[i];
+    if (!target || target.id === selfId) continue;
+    if (!target.familyMembers.includes(name)) continue;
+    const updated: Member = {
+      ...target,
+      familyMembers: target.familyMembers.filter((n) => n !== name),
+      updatedAt: nowIso,
+    };
+    members = [...members.slice(0, i), updated, ...members.slice(i + 1)];
+    touched.add(target.id);
+  }
+  return touched;
+}
+
 // ─── 공개 API ────────────────────────────────────────────────────────────
 export function getMembers(): Member[] {
   return members;
@@ -249,10 +366,11 @@ export function getMember(id: string): Member | undefined {
 export function addMember(data: MemberFormData): Member {
   const now = new Date().toISOString();
   const normalized = normalizeData(data);
+  const familyMembers = normalizeNames(data.familyMembers);
   const newMember: Member = {
     id: crypto.randomUUID(),
     ...normalized,
-    familyMembers: data.familyMembers ?? [],
+    familyMembers,
     memberStatus: data.memberStatus || "활동",
     carNumber: data.carNumber || null,
     prayerRequests: [],
@@ -263,6 +381,13 @@ export function addMember(data: MemberFormData): Member {
   members = [newMember, ...members];
   // 새 교인은 POST로 개별 전송 (전체 PUT 대신)
   schedulePatch(newMember.id);
+
+  // 양방향 가족 링크
+  if (newMember.name && familyMembers.length > 0) {
+    const touched = mirrorFamilyLinks(newMember.id, newMember.name, [], familyMembers, now);
+    for (const id of touched) schedulePatch(id);
+  }
+
   for (const listener of listeners) listener();
   return newMember;
 }
@@ -282,13 +407,42 @@ export function updateMember(id: string, data: Partial<MemberFormData>): Member 
   const existing = members[index];
   if (!existing) return null;
 
+  const now = new Date().toISOString();
+  const normalized = normalizeData(data);
+
+  // 가족 목록이 폼에서 전달된 경우에만 변경으로 취급 (부분 업데이트 보존)
+  const familyChanged = Object.hasOwn(data, "familyMembers");
+  const nextFamily = familyChanged ? normalizeNames(data.familyMembers) : existing.familyMembers;
+
   const updated: Member = {
     ...existing,
-    ...normalizeData(data),
-    updatedAt: new Date().toISOString(),
+    ...normalized,
+    familyMembers: nextFamily,
+    updatedAt: now,
   };
   members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
   schedulePatch(id);
+
+  const touched = new Set<string>();
+
+  // 이름 변경 시 다른 교인의 familyMembers 안에서 이름 치환
+  if (existing.name && updated.name && existing.name !== updated.name) {
+    for (const tid of renameInFamilies(id, existing.name, updated.name, now)) {
+      touched.add(tid);
+    }
+  }
+
+  // 가족 목록이 변경되었으면 양방향 거울 반영
+  if (familyChanged) {
+    const nameForLink = updated.name || existing.name;
+    if (nameForLink) {
+      for (const tid of mirrorFamilyLinks(id, nameForLink, existing.familyMembers, nextFamily, now)) {
+        touched.add(tid);
+      }
+    }
+  }
+
+  for (const tid of touched) schedulePatch(tid);
   for (const listener of listeners) listener();
   return updated;
 }
@@ -312,9 +466,18 @@ export function toggleMemberStatus(id: string): Member | null {
 }
 
 export function deleteMember(id: string): boolean {
+  const target = members.find((m) => m.id === id);
+  if (!target) return false;
   const before = members.length;
   members = members.filter((m) => m.id !== id);
   if (members.length < before) {
+    // 다른 교인의 familyMembers에서 삭제된 교인 이름 제거 → 개별 patch
+    if (target.name) {
+      const now = new Date().toISOString();
+      const touched = removeFromFamilies(id, target.name, now);
+      for (const tid of touched) schedulePatch(tid);
+    }
+
     notifySyncStatus(true);
     fetch(`/api/members/${id}`, { method: "DELETE", credentials: "same-origin" })
       .then((res) => {

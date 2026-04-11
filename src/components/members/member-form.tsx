@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { FloppyDisk, ArrowLeft, Camera, Trash, Plus, X } from "@phosphor-icons/react";
 import { POSITIONS, DEPARTMENTS, BAPTISM_TYPES, GENDERS, MEMBER_STATUSES } from "@/lib/constants";
 import { formatPhoneNumber, resizeImage } from "@/lib/utils";
+import { FamilyNameInput } from "@/components/members/family-name-input";
 import type { Member, MemberFormData } from "@/types";
 
 interface MemberFormProps {
@@ -52,6 +53,18 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
       next[idx] = value;
       return { ...prev, familyMembers: next };
     });
+  };
+
+  const otherFamilyNames = (idx: number): string[] => {
+    const list: string[] = [];
+    for (let i = 0; i < form.familyMembers.length; i++) {
+      if (i === idx) continue;
+      const n = form.familyMembers[i]?.trim();
+      if (n) list.push(n);
+    }
+    // 본인의 이름도 가족 후보에서 제외
+    if (form.name.trim()) list.push(form.name.trim());
+    return list;
   };
 
   const addFamilyMember = () => {
@@ -342,14 +355,18 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
           {/* 가족 정보 */}
           <div>
             <h3 className="text-sm font-semibold text-muted-foreground mb-4">가족 정보</h3>
+            <p className="mb-3 text-xs text-muted-foreground">
+              이름 일부만 입력해도 등록된 교인 목록이 표시됩니다. 목록에서 선택하면
+              양쪽 교적에 자동으로 가족으로 등록됩니다.
+            </p>
             <div className="space-y-2">
               {form.familyMembers.map((name, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <Input
+                <div key={idx} className="flex items-start gap-2">
+                  <FamilyNameInput
                     value={name}
-                    onChange={(e) => handleFamilyChange(idx, e.target.value)}
-                    placeholder="가족 이름"
-                    className="flex-1"
+                    onChange={(v) => handleFamilyChange(idx, v)}
+                    excludeId={initialData?.id}
+                    excludeNames={otherFamilyNames(idx)}
                   />
                   <Button
                     type="button"
