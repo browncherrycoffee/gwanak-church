@@ -98,7 +98,7 @@ function VisitModal({ member, sizeIdx, onClose }: { member: Member; sizeIdx: num
                 <div className="space-y-3">
                   {visits.map((visit) => (
                     <div key={visit.id} className="leading-relaxed">
-                      <p className={`${getContentClass(sizeIdx)} text-foreground/80`}>{visit.content}</p>
+                      <p className={`${getContentClass(sizeIdx)} text-foreground/80 whitespace-pre-wrap`}>{visit.content}</p>
                       {/^\d{4}-\d{2}-\d{2}/.test(visit.visitedAt) && (
                         <p className="text-xs text-muted-foreground/50 mt-0.5">
                           {visit.visitedAt}
@@ -287,7 +287,7 @@ export default function PastoralListPage() {
                     <button
                       type="button"
                       onClick={() => setSelectedMemberId(member.id)}
-                      className={`${getContentClass(sizeIdx)} mt-1.5 text-left leading-relaxed text-foreground/80 hover:text-primary transition-colors cursor-pointer`}
+                      className={`${getContentClass(sizeIdx)} mt-1.5 text-left leading-relaxed text-foreground/80 hover:text-primary transition-colors cursor-pointer whitespace-pre-wrap`}
                     >
                       {latestVisit.content}
                       {member.pastoralVisits.length > 1 && (

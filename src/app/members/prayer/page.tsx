@@ -288,7 +288,7 @@ function PrayerModal({
                         /* 일반 표시 */
                         <div className="flex gap-2 items-start">
                           <div className="flex-1 leading-relaxed">
-                            <p className={`${getPrayerClass(sizeIdx)} text-foreground/80`}>
+                            <p className={`${getPrayerClass(sizeIdx)} text-foreground/80 whitespace-pre-wrap`}>
                               {req.content}
                             </p>
                             {/^\d{4}-\d{2}-\d{2}/.test(req.createdAt) && (
@@ -374,7 +374,7 @@ function MemberPrayerRow({
           <button
             type="button"
             onClick={() => onSelect(member.id)}
-            className={`${getPrayerClass(sizeIdx)} mt-1.5 text-left leading-relaxed text-foreground/80 hover:text-primary transition-colors cursor-pointer`}
+            className={`${getPrayerClass(sizeIdx)} mt-1.5 text-left leading-relaxed text-foreground/80 hover:text-primary transition-colors cursor-pointer whitespace-pre-wrap`}
           >
             {latestPrayer.content}
             {member.prayerRequests.length > 1 && (
