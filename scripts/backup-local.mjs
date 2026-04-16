@@ -26,6 +26,8 @@ const LOG_FILE = path.join(BACKUP_DIR, "backup.log");
 const LATEST_FILE = path.join(BACKUP_DIR, "latest.json.gz");
 
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+const RETENTION_DAYS = 90;
+const BACKUP_FILE_PATTERN = /^gwanak-backup-\d{4}-\d{2}-\d{2}_\d{4}\.json\.gz$/;
 
 function kstNow() {
   return new Date(Date.now() + KST_OFFSET_MS);
@@ -48,6 +50,35 @@ function appendLog(line) {
   } catch (e) {
     console.error("[backup-local] 로그 작성 실패:", e);
   }
+}
+
+// 90일 보관 정책 — 오래된 일자별 백업 파일을 삭제
+// (latest.json.gz, backup.log, launchd.*.log 등은 패턴이 달라 절대 삭제되지 않음)
+function pruneOldBackups(keepFilename) {
+  const cutoffMs = Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000;
+  const deleted = [];
+  let entries;
+  try {
+    entries = fs.readdirSync(BACKUP_DIR);
+  } catch {
+    return { deleted };
+  }
+
+  for (const name of entries) {
+    if (!BACKUP_FILE_PATTERN.test(name)) continue; // 일자별 백업만 대상
+    if (name === keepFilename) continue;            // 방금 만든 파일은 보호
+    const full = path.join(BACKUP_DIR, name);
+    try {
+      const st = fs.statSync(full);
+      if (st.mtimeMs < cutoffMs) {
+        fs.unlinkSync(full);
+        deleted.push(name);
+      }
+    } catch {
+      // 개별 파일 오류는 무시 (권한, 동시 접근 등)
+    }
+  }
+  return { deleted };
 }
 
 async function main() {
@@ -103,6 +134,14 @@ async function main() {
     const msg = `[${date} ${time}] OK — ${rows.length}명 · ${json.length.toLocaleString()}B → ${gz.length.toLocaleString()}B (${filename}) · ${elapsedMs}ms`;
     appendLog(msg);
     console.info(msg);
+
+    // 보관 정책: 90일 초과 파일 정리
+    const { deleted } = pruneOldBackups(filename);
+    if (deleted.length > 0) {
+      const pruneMsg = `[${date} ${time}] PRUNE — ${RETENTION_DAYS}일 초과 ${deleted.length}개 삭제: ${deleted.join(", ")}`;
+      appendLog(pruneMsg);
+      console.info(pruneMsg);
+    }
   } catch (err) {
     const msg = `[${date} ${time}] FAIL — ${err?.message ?? err}`;
     appendLog(msg);
