@@ -204,11 +204,22 @@ export default function StatsPage() {
     return items.filter((x) => x.label).sort((a, b) => a.label.localeCompare(b.label, "ko"));
   }, [active]);
 
-  // 주거지별 — 전체 등록교인 기준
-  const byResidence = useMemo(
-    () => groupMembers(nonRemoved, (m) => getResidenceArea(m.address)).sort((a, b) => b.count - a.count),
-    [nonRemoved],
-  );
+  // 주거지별 — 전체 등록교인 기준 (서울 → 경기 → 기타, 각 그룹 내 인원 순)
+  const byResidence = useMemo(() => {
+    const items = groupMembers(nonRemoved, (m) => getResidenceArea(m.address));
+    const regionOrder = (label: string) => {
+      if (label === "미입력") return 9;
+      if (label.startsWith("서울")) return 0;
+      if (label.startsWith("경기")) return 1;
+      return 2;
+    };
+    return items.sort((a, b) => {
+      const ra = regionOrder(a.label);
+      const rb = regionOrder(b.label);
+      if (ra !== rb) return ra - rb;
+      return b.count - a.count;
+    });
+  }, [nonRemoved]);
 
   // 최근 등록 교인
   const recentMembers = useMemo(() => {
