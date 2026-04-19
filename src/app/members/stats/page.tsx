@@ -66,8 +66,8 @@ const AGE_GROUP_ORDER = ["10세 미만", "10대", "20대", "30대", "40대", "50
 
 function getResidenceArea(address: string | null): string {
   if (!address || !address.trim()) return "미입력";
-  // 우편번호 제거 (5자리 숫자)
-  const cleaned = address.replace(/^\d{5}\s*/, "").trim();
+  // 우편번호 제거: 08821 또는 (08821) 형태
+  const cleaned = address.replace(/^\(?\d{5}\)?\s*/, "").trim();
   if (!cleaned) return "미입력";
 
   // 서울: 구 단위
