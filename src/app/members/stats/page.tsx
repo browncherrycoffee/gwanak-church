@@ -1,39 +1,76 @@
 "use client";
 
-import { useMemo, useSyncExternalStore } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import {
   Cross,
   ArrowLeft,
   UsersThree,
   ChartBar,
+  CaretDown,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getMembers, subscribe } from "@/lib/member-store";
 import { POSITION_ORDER, DEPARTMENTS, BAPTISM_TYPES } from "@/lib/constants";
+import type { Member } from "@/types";
 
-function StatBar({ label, count, total, color = "bg-primary" }: {
+function StatBar({ label, count, total, color = "bg-primary", members, expanded, onToggle }: {
   label: string;
   count: number;
   total: number;
   color?: string;
+  members?: Member[];
+  expanded?: boolean;
+  onToggle?: () => void;
 }) {
   const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+  const clickable = !!members && members.length > 0;
   return (
-    <div className="flex items-center gap-3">
-      <span className="w-28 shrink-0 text-sm text-right text-muted-foreground truncate">{label}</span>
-      <div className="flex-1 h-5 rounded-full bg-secondary overflow-hidden">
-        <div
-          className={`h-full rounded-full ${color} transition-all`}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-      <span className="w-14 shrink-0 text-sm font-medium text-right">
-        {count}명
-        <span className="text-xs text-muted-foreground ml-1">({pct}%)</span>
-      </span>
+    <div>
+      <button
+        type="button"
+        className={`flex w-full items-center gap-3 rounded-md px-1 py-0.5 transition-colors ${clickable ? "cursor-pointer hover:bg-secondary/50" : ""}`}
+        onClick={clickable ? onToggle : undefined}
+      >
+        <span className="w-28 shrink-0 text-sm text-right text-muted-foreground truncate">{label}</span>
+        <div className="flex-1 h-5 rounded-full bg-secondary overflow-hidden">
+          <div
+            className={`h-full rounded-full ${color} transition-all`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <span className="w-14 shrink-0 text-sm font-medium text-right">
+          {count}명
+          <span className="text-xs text-muted-foreground ml-1">({pct}%)</span>
+        </span>
+        {clickable && (
+          <CaretDown
+            weight="bold"
+            className={`h-3 w-3 shrink-0 text-muted-foreground transition-transform ${expanded ? "rotate-180" : ""}`}
+          />
+        )}
+      </button>
+      {expanded && members && members.length > 0 && (
+        <div className="ml-[7.75rem] mt-1 mb-2 space-y-0.5">
+          {members.map((m) => (
+            <Link
+              key={m.id}
+              href={`/members/${m.id}`}
+              className="flex items-center gap-2 rounded-md px-2 py-1 text-sm hover:bg-secondary transition-colors"
+            >
+              <span className="font-medium">{m.name}</span>
+              {m.position && m.position !== "성도" && (
+                <Badge variant="secondary" className="text-[10px]">{m.position}</Badge>
+              )}
+              {m.department && (
+                <span className="text-xs text-muted-foreground ml-auto">{m.department}</span>
+              )}
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -97,117 +134,81 @@ function getResidenceArea(address: string | null): string {
   return words.slice(0, 2).join(" ") || "기타";
 }
 
+type StatItem = { label: string; count: number; members: Member[] };
+
+function groupMembers(source: Member[], keyFn: (m: Member) => string, order?: string[]): StatItem[] {
+  const map = new Map<string, Member[]>();
+  for (const m of source) {
+    const key = keyFn(m);
+    const arr = map.get(key);
+    if (arr) arr.push(m);
+    else map.set(key, [m]);
+  }
+  const items: StatItem[] = [];
+  if (order) {
+    for (const key of order) {
+      const arr = map.get(key);
+      if (arr) items.push({ label: key, count: arr.length, members: arr });
+      map.delete(key);
+    }
+  }
+  for (const [label, arr] of map) {
+    items.push({ label, count: arr.length, members: arr });
+  }
+  return items;
+}
+
 export default function StatsPage() {
   const members = useSyncExternalStore(subscribe, getMembers, getMembers);
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
+
+  const toggle = (key: string) => setExpandedKey((prev) => (prev === key ? null : key));
 
   const active = useMemo(() => members.filter((m) => m.memberStatus === "활동"), [members]);
   const nonRemoved = useMemo(() => members.filter((m) => m.memberStatus !== "제적"), [members]);
 
   // 직분별
-  const byPosition = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const m of nonRemoved) {
-      const key = m.position || "미입력";
-      map.set(key, (map.get(key) ?? 0) + 1);
-    }
-    const ordered: { label: string; count: number }[] = [];
-    for (const pos of POSITION_ORDER) {
-      const count = map.get(pos);
-      if (count) ordered.push({ label: pos, count });
-      map.delete(pos);
-    }
-    for (const [label, count] of map) {
-      ordered.push({ label, count });
-    }
-    return ordered;
-  }, [nonRemoved]);
+  const byPosition = useMemo(
+    () => groupMembers(nonRemoved, (m) => m.position || "미입력", [...POSITION_ORDER]),
+    [nonRemoved],
+  );
 
   // 소속(부서)별 — 활동 교인 기준
-  const byDepartment = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const m of active) {
-      const key = m.department || "미배정";
-      map.set(key, (map.get(key) ?? 0) + 1);
-    }
-    const ordered: { label: string; count: number }[] = [];
-    for (const dept of DEPARTMENTS) {
-      const count = map.get(dept);
-      if (count) ordered.push({ label: dept, count });
-      map.delete(dept);
-    }
-    for (const [label, count] of map) {
-      ordered.push({ label, count });
-    }
-    return ordered.sort((a, b) => b.count - a.count);
-  }, [active]);
+  const byDepartment = useMemo(
+    () => groupMembers(active, (m) => m.department || "미배정", [...DEPARTMENTS]).sort((a, b) => b.count - a.count),
+    [active],
+  );
 
   // 성별
   const byGender = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const m of nonRemoved) {
-      const key = m.gender || "미입력";
-      map.set(key, (map.get(key) ?? 0) + 1);
-    }
-    return [
-      { label: "남", count: map.get("남") ?? 0 },
-      { label: "여", count: map.get("여") ?? 0 },
-      { label: "미입력", count: map.get("미입력") ?? 0 },
-    ].filter((x) => x.count > 0);
+    const all = groupMembers(nonRemoved, (m) => m.gender || "미입력");
+    const order = ["남", "여", "미입력"];
+    return order.map((l) => all.find((x) => x.label === l)).filter((x): x is StatItem => !!x && x.count > 0);
   }, [nonRemoved]);
 
   // 세례 종류별
-  const byBaptism = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const m of nonRemoved) {
-      const key = m.baptismType || "미입력";
-      map.set(key, (map.get(key) ?? 0) + 1);
-    }
-    const ordered: { label: string; count: number }[] = [];
-    for (const bt of BAPTISM_TYPES) {
-      const count = map.get(bt);
-      if (count) ordered.push({ label: bt, count });
-      map.delete(bt);
-    }
-    for (const [label, count] of map) {
-      ordered.push({ label, count });
-    }
-    return ordered;
-  }, [nonRemoved]);
+  const byBaptism = useMemo(
+    () => groupMembers(nonRemoved, (m) => m.baptismType || "미입력", [...BAPTISM_TYPES]),
+    [nonRemoved],
+  );
 
   // 연령대별
   const byAge = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const m of nonRemoved) {
-      const key = getAgeGroup(m.birthDate);
-      map.set(key, (map.get(key) ?? 0) + 1);
-    }
-    return AGE_GROUP_ORDER
-      .map((label) => ({ label, count: map.get(label) ?? 0 }))
-      .filter((x) => x.count > 0);
+    const all = groupMembers(nonRemoved, (m) => getAgeGroup(m.birthDate));
+    return AGE_GROUP_ORDER.map((l) => all.find((x) => x.label === l)).filter((x): x is StatItem => !!x && x.count > 0);
   }, [nonRemoved]);
 
   // 구역별 — 활동 교인 기준
   const byDistrict = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const m of active) {
-      if (m.district) map.set(m.district, (map.get(m.district) ?? 0) + 1);
-    }
-    return [...map.entries()]
-      .sort((a, b) => a[0].localeCompare(b[0], "ko"))
-      .map(([label, count]) => ({ label, count }));
+    const items = groupMembers(active, (m) => m.district || "");
+    return items.filter((x) => x.label).sort((a, b) => a.label.localeCompare(b.label, "ko"));
   }, [active]);
 
   // 주거지별 — 전체 등록교인 기준
-  const byResidence = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const m of nonRemoved) {
-      const key = getResidenceArea(m.address);
-      map.set(key, (map.get(key) ?? 0) + 1);
-    }
-    return [...map.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .map(([label, count]) => ({ label, count }));
-  }, [nonRemoved]);
+  const byResidence = useMemo(
+    () => groupMembers(nonRemoved, (m) => getResidenceArea(m.address)).sort((a, b) => b.count - a.count),
+    [nonRemoved],
+  );
 
   // 최근 등록 교인
   const recentMembers = useMemo(() => {
@@ -269,9 +270,9 @@ export default function StatsPage() {
         <Card>
           <CardContent className="p-5">
             <SectionTitle>직분별 분포 (전체 등록교인 기준)</SectionTitle>
-            <div className="space-y-2.5">
+            <div className="space-y-1">
               {byPosition.map((item) => (
-                <StatBar key={item.label} label={item.label} count={item.count} total={nonRemoved.length} />
+                <StatBar key={item.label} label={item.label} count={item.count} total={nonRemoved.length} members={item.members} expanded={expandedKey === `pos:${item.label}`} onToggle={() => toggle(`pos:${item.label}`)} />
               ))}
             </div>
           </CardContent>
@@ -281,7 +282,7 @@ export default function StatsPage() {
         <Card>
           <CardContent className="p-5">
             <SectionTitle>성별 분포 (전체 등록교인 기준)</SectionTitle>
-            <div className="space-y-2.5">
+            <div className="space-y-1">
               {byGender.map((item) => (
                 <StatBar
                   key={item.label}
@@ -289,6 +290,9 @@ export default function StatsPage() {
                   count={item.count}
                   total={nonRemoved.length}
                   color={item.label === "남" ? "bg-blue-500" : item.label === "여" ? "bg-rose-400" : "bg-muted-foreground"}
+                  members={item.members}
+                  expanded={expandedKey === `gen:${item.label}`}
+                  onToggle={() => toggle(`gen:${item.label}`)}
                 />
               ))}
             </div>
@@ -300,9 +304,9 @@ export default function StatsPage() {
           <Card>
             <CardContent className="p-5">
               <SectionTitle>연령대별 분포 (생년월일 입력 기준)</SectionTitle>
-              <div className="space-y-2.5">
+              <div className="space-y-1">
                 {byAge.map((item) => (
-                  <StatBar key={item.label} label={item.label} count={item.count} total={nonRemoved.length} />
+                  <StatBar key={item.label} label={item.label} count={item.count} total={nonRemoved.length} members={item.members} expanded={expandedKey === `age:${item.label}`} onToggle={() => toggle(`age:${item.label}`)} />
                 ))}
               </div>
             </CardContent>
@@ -313,9 +317,9 @@ export default function StatsPage() {
         <Card>
           <CardContent className="p-5">
             <SectionTitle>소속별 분포 (출석 교인 기준)</SectionTitle>
-            <div className="space-y-2.5">
+            <div className="space-y-1">
               {byDepartment.map((item) => (
-                <StatBar key={item.label} label={item.label} count={item.count} total={active.length} />
+                <StatBar key={item.label} label={item.label} count={item.count} total={active.length} members={item.members} expanded={expandedKey === `dept:${item.label}`} onToggle={() => toggle(`dept:${item.label}`)} />
               ))}
             </div>
           </CardContent>
@@ -326,9 +330,9 @@ export default function StatsPage() {
           <Card>
             <CardContent className="p-5">
               <SectionTitle>구역별 분포 (출석 교인 기준)</SectionTitle>
-              <div className="space-y-2.5">
+              <div className="space-y-1">
                 {byDistrict.map((item) => (
-                  <StatBar key={item.label} label={item.label} count={item.count} total={active.length} />
+                  <StatBar key={item.label} label={item.label} count={item.count} total={active.length} members={item.members} expanded={expandedKey === `dist:${item.label}`} onToggle={() => toggle(`dist:${item.label}`)} />
                 ))}
               </div>
             </CardContent>
@@ -340,9 +344,9 @@ export default function StatsPage() {
           <Card>
             <CardContent className="p-5">
               <SectionTitle>주거지별 분포 (전체 등록교인 기준)</SectionTitle>
-              <div className="space-y-2.5">
+              <div className="space-y-1">
                 {byResidence.map((item) => (
-                  <StatBar key={item.label} label={item.label} count={item.count} total={nonRemoved.length} />
+                  <StatBar key={item.label} label={item.label} count={item.count} total={nonRemoved.length} members={item.members} expanded={expandedKey === `res:${item.label}`} onToggle={() => toggle(`res:${item.label}`)} />
                 ))}
               </div>
             </CardContent>
@@ -353,9 +357,9 @@ export default function StatsPage() {
         <Card>
           <CardContent className="p-5">
             <SectionTitle>세례 종류별 (전체 등록교인 기준)</SectionTitle>
-            <div className="space-y-2.5">
+            <div className="space-y-1">
               {byBaptism.map((item) => (
-                <StatBar key={item.label} label={item.label} count={item.count} total={nonRemoved.length} />
+                <StatBar key={item.label} label={item.label} count={item.count} total={nonRemoved.length} members={item.members} expanded={expandedKey === `bap:${item.label}`} onToggle={() => toggle(`bap:${item.label}`)} />
               ))}
             </div>
           </CardContent>
