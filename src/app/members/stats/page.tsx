@@ -64,6 +64,39 @@ function getAgeGroup(birthDate: string | null): string {
 
 const AGE_GROUP_ORDER = ["10세 미만", "10대", "20대", "30대", "40대", "50대", "60대", "70대 이상", "미입력"];
 
+function getResidenceArea(address: string | null): string {
+  if (!address || !address.trim()) return "미입력";
+  // 우편번호 제거 (5자리 숫자)
+  const cleaned = address.replace(/^\d{5}\s*/, "").trim();
+  if (!cleaned) return "미입력";
+
+  // 서울: 구 단위
+  const seoulMatch = cleaned.match(/^서울(?:특별시|시)?\s+(\S+구)/);
+  if (seoulMatch?.[1]) return `서울 ${seoulMatch[1]}`;
+
+  // 경기도: 시 단위
+  const gyeonggiMatch = cleaned.match(/^경기(?:도)?\s+(\S+시)/);
+  if (gyeonggiMatch?.[1]) return `경기 ${gyeonggiMatch[1]}`;
+
+  // 그 외 광역시: 구 단위
+  const metroMatch = cleaned.match(/^(인천|부산|대구|대전|광주|울산)(?:광역시|시)?\s+(\S+구)/);
+  if (metroMatch?.[1] && metroMatch[2]) return `${metroMatch[1]} ${metroMatch[2]}`;
+
+  // 세종시
+  if (/^세종(?:특별자치시|시)?/.test(cleaned)) return "세종시";
+
+  // 기타 도: 시/군 단위
+  const doMatch = cleaned.match(/^(충청북도|충북|충청남도|충남|전라북도|전북|전라남도|전남|경상북도|경북|경상남도|경남|강원도|강원|제주(?:특별자치도|도)?)\s+(\S+[시군])/);
+  if (doMatch?.[1] && doMatch[2]) {
+    const doName = doMatch[1].replace(/도$/, "").replace(/특별자치도$/, "");
+    return `${doName} ${doMatch[2]}`;
+  }
+
+  // 파싱 실패 시 첫 두 단어
+  const words = cleaned.split(/\s+/);
+  return words.slice(0, 2).join(" ") || "기타";
+}
+
 export default function StatsPage() {
   const members = useSyncExternalStore(subscribe, getMembers, getMembers);
 
@@ -163,6 +196,18 @@ export default function StatsPage() {
       .sort((a, b) => a[0].localeCompare(b[0], "ko"))
       .map(([label, count]) => ({ label, count }));
   }, [active]);
+
+  // 주거지별 — 전체 등록교인 기준
+  const byResidence = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const m of nonRemoved) {
+      const key = getResidenceArea(m.address);
+      map.set(key, (map.get(key) ?? 0) + 1);
+    }
+    return [...map.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([label, count]) => ({ label, count }));
+  }, [nonRemoved]);
 
   // 최근 등록 교인
   const recentMembers = useMemo(() => {
@@ -284,6 +329,20 @@ export default function StatsPage() {
               <div className="space-y-2.5">
                 {byDistrict.map((item) => (
                   <StatBar key={item.label} label={item.label} count={item.count} total={active.length} />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 주거지별 */}
+        {byResidence.length > 0 && (
+          <Card>
+            <CardContent className="p-5">
+              <SectionTitle>주거지별 분포 (전체 등록교인 기준)</SectionTitle>
+              <div className="space-y-2.5">
+                {byResidence.map((item) => (
+                  <StatBar key={item.label} label={item.label} count={item.count} total={nonRemoved.length} />
                 ))}
               </div>
             </CardContent>
