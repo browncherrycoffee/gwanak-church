@@ -289,9 +289,26 @@ function mirrorFamilyLinks(
 
   // 2) cluster 클로저: {self} ∪ nextFamily 안의 모든 교인이
   //    서로를 familyMembers에 포함해야 함 (빠진 이름만 추가 — 기존 관계는 건드리지 않음)
+  //    + 주소가 비어있는 가족에게 대표 주소 자동 복사
   if (nextFamily.length > 0) {
     const cluster = new Set<string>(nextFamily);
     cluster.add(selfName);
+
+    // 대표 주소 결정: cluster 안에서 주소가 있는 교인 중 가장 먼저 나온 주소 사용
+    const self = members.find((m) => m.id === selfId);
+    let representativeAddress = self?.address?.trim() || "";
+    let representativeDetail = self?.detailAddress?.trim() || "";
+    if (!representativeAddress) {
+      for (const memberName of cluster) {
+        if (memberName === selfName) continue;
+        const fm = members.find((m) => m.name === memberName && m.id !== selfId);
+        if (fm?.address?.trim()) {
+          representativeAddress = fm.address.trim();
+          representativeDetail = fm.detailAddress?.trim() || "";
+          break;
+        }
+      }
+    }
 
     for (const memberName of cluster) {
       if (memberName === selfName) continue; // self는 이미 저장됨
@@ -308,11 +325,16 @@ function mirrorFamilyLinks(
         for (const o of others) {
           if (!existingSet.has(o)) additions.push(o);
         }
-        if (additions.length === 0) continue;
+
+        // 주소가 비어있으면 대표 주소 복사
+        const needsAddress = !target.address?.trim() && !!representativeAddress;
+
+        if (additions.length === 0 && !needsAddress) continue;
 
         const updated: Member = {
           ...target,
-          familyMembers: [...target.familyMembers, ...additions],
+          familyMembers: additions.length > 0 ? [...target.familyMembers, ...additions] : target.familyMembers,
+          ...(needsAddress ? { address: representativeAddress, detailAddress: representativeDetail || target.detailAddress } : {}),
           updatedAt: nowIso,
         };
         members = [...members.slice(0, i), updated, ...members.slice(i + 1)];
