@@ -75,6 +75,142 @@ function StatBar({ label, count, total, color = "bg-primary", members, expanded,
   );
 }
 
+// 서울=초록계열, 경기=파랑계열, 기타=주황/보라, 미입력=회색
+const PIE_COLORS = [
+  "#166534", "#15803d", "#22c55e", "#4ade80", "#86efac", "#bbf7d0", "#dcfce7",
+  "#1e40af", "#2563eb", "#3b82f6", "#60a5fa", "#93c5fd", "#bfdbfe",
+  "#c2410c", "#9333ea", "#db2777", "#f59e0b", "#14b8a6", "#6366f1",
+  "#9ca3af",
+];
+
+function DonutChart({ items, total, expandedKey: currentKey, onToggle, keyPrefix }: {
+  items: StatItem[];
+  total: number;
+  expandedKey: string | null;
+  onToggle: (key: string) => void;
+  keyPrefix: string;
+}) {
+  const cx = 100, cy = 100, outerR = 90, innerR = 55;
+
+  // 서울→경기→기타→미입력 순으로 색상 배정
+  const colorMap = useMemo(() => {
+    const map = new Map<string, string>();
+    let seoulIdx = 0, gyeonggiIdx = 7, otherIdx = 13;
+    for (const item of items) {
+      if (item.label === "미입력") map.set(item.label, "#9ca3af");
+      else if (item.label.startsWith("서울")) map.set(item.label, PIE_COLORS[seoulIdx++] ?? "#86efac");
+      else if (item.label.startsWith("경기")) map.set(item.label, PIE_COLORS[gyeonggiIdx++] ?? "#60a5fa");
+      else map.set(item.label, PIE_COLORS[otherIdx++] ?? "#f59e0b");
+    }
+    return map;
+  }, [items]);
+
+  const slices = useMemo(() => {
+    let angle = -Math.PI / 2;
+    return items.map((item) => {
+      const sweep = total > 0 ? (item.count / total) * 2 * Math.PI : 0;
+      const startAngle = angle;
+      angle += sweep;
+      return { ...item, startAngle, sweep };
+    });
+  }, [items, total]);
+
+  const slicePath = (startAngle: number, sweep: number) => {
+    const clampedSweep = Math.min(sweep, 2 * Math.PI - 0.001);
+    const ox1 = cx + outerR * Math.cos(startAngle);
+    const oy1 = cy + outerR * Math.sin(startAngle);
+    const ox2 = cx + outerR * Math.cos(startAngle + clampedSweep);
+    const oy2 = cy + outerR * Math.sin(startAngle + clampedSweep);
+    const ix2 = cx + innerR * Math.cos(startAngle + clampedSweep);
+    const iy2 = cy + innerR * Math.sin(startAngle + clampedSweep);
+    const ix1 = cx + innerR * Math.cos(startAngle);
+    const iy1 = cy + innerR * Math.sin(startAngle);
+    const large = clampedSweep > Math.PI ? 1 : 0;
+    return `M ${ox1} ${oy1} A ${outerR} ${outerR} 0 ${large} 1 ${ox2} ${oy2} L ${ix2} ${iy2} A ${innerR} ${innerR} 0 ${large} 0 ${ix1} ${iy1} Z`;
+  };
+
+  const selectedSlice = slices.find((s) => `${keyPrefix}${s.label}` === currentKey);
+
+  return (
+    <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:gap-8">
+      {/* 도넛 차트 */}
+      <div className="shrink-0">
+        <svg viewBox="0 0 200 200" className="w-52 h-52 sm:w-60 sm:h-60">
+          {slices.map((s) => {
+            if (s.sweep <= 0) return null;
+            const isSelected = `${keyPrefix}${s.label}` === currentKey;
+            return (
+              <path
+                key={s.label}
+                d={slicePath(s.startAngle, s.sweep)}
+                fill={colorMap.get(s.label) ?? "#9ca3af"}
+                stroke="white"
+                strokeWidth={2}
+                opacity={currentKey && !isSelected ? 0.4 : 1}
+                className="cursor-pointer transition-opacity"
+                onClick={() => onToggle(`${keyPrefix}${s.label}`)}
+              />
+            );
+          })}
+          {/* 중앙 텍스트 */}
+          <text x={cx} y={cy - 6} textAnchor="middle" className="fill-foreground text-2xl font-bold">{total}</text>
+          <text x={cx} y={cy + 14} textAnchor="middle" className="fill-muted-foreground text-[10px]">전체 교인</text>
+        </svg>
+      </div>
+
+      {/* 범례 + 선택된 교인 목록 */}
+      <div className="flex-1 min-w-0 w-full">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-1">
+          {slices.filter((s) => s.count > 0).map((s) => {
+            const key = `${keyPrefix}${s.label}`;
+            const isSelected = key === currentKey;
+            const pct = total > 0 ? Math.round((s.count / total) * 100) : 0;
+            return (
+              <button
+                key={s.label}
+                type="button"
+                onClick={() => onToggle(key)}
+                className={`flex items-center gap-2 rounded px-1.5 py-0.5 text-left transition-colors text-sm ${isSelected ? "bg-secondary" : "hover:bg-secondary/50"}`}
+              >
+                <span
+                  className="h-3 w-3 shrink-0 rounded-sm"
+                  style={{ backgroundColor: colorMap.get(s.label) }}
+                />
+                <span className="truncate">{s.label}</span>
+                <span className="ml-auto shrink-0 text-xs text-muted-foreground">{s.count}명 ({pct}%)</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* 선택 시 교인 목록 */}
+        {selectedSlice && selectedSlice.members.length > 0 && (
+          <div className="mt-3 border-t pt-3 space-y-0.5">
+            <p className="text-xs font-medium text-muted-foreground mb-1.5">
+              {selectedSlice.label} — {selectedSlice.count}명
+            </p>
+            {selectedSlice.members.map((m) => (
+              <Link
+                key={m.id}
+                href={`/members/${m.id}`}
+                className="flex items-center gap-2 rounded-md px-2 py-1 text-sm hover:bg-secondary transition-colors"
+              >
+                <span className="font-medium">{m.name}</span>
+                {m.position && m.position !== "성도" && (
+                  <Badge variant="secondary" className="text-[10px]">{m.position}</Badge>
+                )}
+                {m.department && (
+                  <span className="text-xs text-muted-foreground ml-auto">{m.department}</span>
+                )}
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
     <h2 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground mb-4">
@@ -352,16 +488,30 @@ export default function StatsPage() {
 
         {/* 주거지별 */}
         {byResidence.length > 0 && (
-          <Card>
-            <CardContent className="p-5">
-              <SectionTitle>주거지별 분포 (전체 등록교인 기준)</SectionTitle>
-              <div className="space-y-1">
-                {byResidence.map((item) => (
-                  <StatBar key={item.label} label={item.label} count={item.count} total={nonRemoved.length} members={item.members} expanded={expandedKey === `res:${item.label}`} onToggle={() => toggle(`res:${item.label}`)} />
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <>
+            <Card>
+              <CardContent className="p-5">
+                <SectionTitle>주거지별 분포 (전체 등록교인 기준)</SectionTitle>
+                <DonutChart
+                  items={byResidence}
+                  total={nonRemoved.length}
+                  expandedKey={expandedKey}
+                  onToggle={toggle}
+                  keyPrefix="res:"
+                />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5">
+                <SectionTitle>주거지별 상세 (전체 등록교인 기준)</SectionTitle>
+                <div className="space-y-1">
+                  {byResidence.map((item) => (
+                    <StatBar key={item.label} label={item.label} count={item.count} total={nonRemoved.length} members={item.members} expanded={expandedKey === `res:${item.label}`} onToggle={() => toggle(`res:${item.label}`)} />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </>
         )}
 
         {/* 세례 종류별 */}
