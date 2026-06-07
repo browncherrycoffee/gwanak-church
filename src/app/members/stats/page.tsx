@@ -75,6 +75,12 @@ function StatBar({ label, count, total, color = "bg-primary", members, expanded,
   );
 }
 
+const genderColors = new Map([
+  ["남", "#3b82f6"],   // blue-500
+  ["여", "#fb7185"],   // rose-400
+  ["미입력", "#9ca3af"],
+]);
+
 // 서울=초록계열, 경기=파랑계열, 기타=주황/보라, 미입력=회색
 const PIE_COLORS = [
   "#166534", "#15803d", "#22c55e", "#4ade80", "#86efac", "#bbf7d0", "#dcfce7",
@@ -83,17 +89,19 @@ const PIE_COLORS = [
   "#9ca3af",
 ];
 
-function DonutChart({ items, total, expandedKey: currentKey, onToggle, keyPrefix }: {
+function DonutChart({ items, total, expandedKey: currentKey, onToggle, keyPrefix, colors }: {
   items: StatItem[];
   total: number;
   expandedKey: string | null;
   onToggle: (key: string) => void;
   keyPrefix: string;
+  colors?: Map<string, string>;
 }) {
   const cx = 100, cy = 100, outerR = 90, innerR = 55;
 
-  // 서울→경기→기타→미입력 순으로 색상 배정
+  // 색상: 외부 전달 시 사용, 없으면 주거지 기본 로직
   const colorMap = useMemo(() => {
+    if (colors) return colors;
     const map = new Map<string, string>();
     let seoulIdx = 0, gyeonggiIdx = 7, otherIdx = 13;
     for (const item of items) {
@@ -103,7 +111,7 @@ function DonutChart({ items, total, expandedKey: currentKey, onToggle, keyPrefix
       else map.set(item.label, PIE_COLORS[otherIdx++] ?? "#f59e0b");
     }
     return map;
-  }, [items]);
+  }, [items, colors]);
 
   const slices = useMemo(() => {
     let angle = -Math.PI / 2;
@@ -429,20 +437,14 @@ export default function StatsPage() {
         <Card>
           <CardContent className="p-5">
             <SectionTitle>성별 분포 (전체 등록교인 기준)</SectionTitle>
-            <div className="space-y-1">
-              {byGender.map((item) => (
-                <StatBar
-                  key={item.label}
-                  label={item.label}
-                  count={item.count}
-                  total={nonRemoved.length}
-                  color={item.label === "남" ? "bg-blue-500" : item.label === "여" ? "bg-rose-400" : "bg-muted-foreground"}
-                  members={item.members}
-                  expanded={expandedKey === `gen:${item.label}`}
-                  onToggle={() => toggle(`gen:${item.label}`)}
-                />
-              ))}
-            </div>
+            <DonutChart
+              items={byGender}
+              total={nonRemoved.length}
+              expandedKey={expandedKey}
+              onToggle={toggle}
+              keyPrefix="gen:"
+              colors={genderColors}
+            />
           </CardContent>
         </Card>
 
