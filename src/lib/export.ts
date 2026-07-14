@@ -35,6 +35,7 @@ const CSV_HEADERS = [
   "등록일",
   "세례교인회원가입일",
   "활동여부",
+  "공동의회회원",
   "비고",
 ];
 
@@ -64,6 +65,7 @@ export function exportMembersCsv(members: Member[]): void {
     m.registrationDate,
     m.memberJoinDate,
     m.memberStatus,
+    m.congregationMember ? "예" : "아니오",
     m.notes,
   ]);
 

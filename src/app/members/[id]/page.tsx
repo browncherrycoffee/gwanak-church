@@ -120,6 +120,7 @@ export default function MemberDetailPage({
     { icon: UsersThree, label: "소속", value: [member.department, member.district].filter(Boolean).join(" / ") },
     { icon: CalendarBlank, label: "등록일", value: member.registrationDate ? formatDate(member.registrationDate) : null },
     { icon: CalendarBlank, label: "세례교인회원가입일", value: member.memberJoinDate ? formatDate(member.memberJoinDate) : null },
+    { icon: UsersThree, label: "공동의회회원", value: member.congregationMember ? "예" : "아니오" },
   ];
 
   const baptismRows = [

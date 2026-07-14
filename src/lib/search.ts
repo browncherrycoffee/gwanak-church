@@ -45,8 +45,31 @@ export function searchMembers(members: Member[], query: string): Member[] {
     cachedFuse = new Fuse(records, FUSE_OPTIONS);
   }
 
-  return cachedFuse.search(query.trim()).map((r) => {
+  const results = cachedFuse.search(query.trim()).map((r) => {
     const { _phoneDigits: _, _carNumberDigits: __, _carNumberLast4: ___, _familyNames: ____, ...member } = r.item;
     return member;
   });
+
+  // 이름으로 매칭된 교인의 가족은 항상 검색 후보에 포함 (퍼지 매칭 누락 방지)
+  const q = query.trim();
+  const resultIds = new Set(results.map((m) => m.id));
+  const byName = new Map<string, Member[]>();
+  for (const m of members) {
+    const list = byName.get(m.name);
+    if (list) list.push(m);
+    else byName.set(m.name, [m]);
+  }
+  const familyToAppend: Member[] = [];
+  for (const matched of results) {
+    if (!matched.name.includes(q)) continue;
+    for (const familyName of matched.familyMembers) {
+      for (const relative of byName.get(familyName.trim()) ?? []) {
+        if (resultIds.has(relative.id)) continue;
+        resultIds.add(relative.id);
+        familyToAppend.push(relative);
+      }
+    }
+  }
+
+  return [...results, ...familyToAppend];
 }

@@ -35,6 +35,8 @@ export interface Member {
   notes: string | null;
   photoUrl: string | null;
   memberStatus: string;
+  // 공동의회회원 여부 (구버전 백업에는 없을 수 있어 optional)
+  congregationMember?: boolean;
   prayerRequests: PrayerRequest[];
   pastoralVisits: PastoralVisit[];
   createdAt: string;
@@ -58,6 +60,7 @@ export interface MemberFormData {
   registrationDate: string;
   memberJoinDate: string;
   memberStatus: string;
+  congregationMember?: boolean;
   carNumber: string;
   notes: string;
   photoUrl: string;

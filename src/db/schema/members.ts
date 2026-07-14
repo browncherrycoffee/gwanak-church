@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, timestamp, date, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, text, timestamp, date, jsonb, boolean } from "drizzle-orm/pg-core";
 
 export const members = pgTable("members", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -23,6 +23,7 @@ export const members = pgTable("members", {
   notes: text("notes"),
   photoUrl: text("photo_url"),
   memberStatus: varchar("member_status", { length: 10 }).default("활동").notNull(),
+  congregationMember: boolean("congregation_member").default(false).notNull(),
   prayerRequests: jsonb("prayer_requests").default([]).notNull(),
   pastoralVisits: jsonb("pastoral_visits").default([]).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

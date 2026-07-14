@@ -38,6 +38,7 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
     registrationDate: initialData?.registrationDate ?? (initialData ? "" : new Date().toISOString().slice(0, 10)),
     memberJoinDate: initialData?.memberJoinDate ?? "",
     memberStatus: initialData?.memberStatus ?? "활동",
+    congregationMember: initialData?.congregationMember ?? false,
     carNumber: initialData?.carNumber ?? "",
     notes: initialData?.notes ?? "",
     photoUrl: initialData?.photoUrl ?? "",
@@ -304,6 +305,20 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
                   {MEMBER_STATUSES.map((s) => (
                     <option key={s} value={s}>{s}</option>
                   ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="member-congregationMember" className="text-sm font-medium mb-1.5 block">공동의회회원</label>
+                <select
+                  id="member-congregationMember"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={form.congregationMember ? "yes" : "no"}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, congregationMember: e.target.value === "yes" }))
+                  }
+                >
+                  <option value="no">아니오</option>
+                  <option value="yes">예</option>
                 </select>
               </div>
             </div>

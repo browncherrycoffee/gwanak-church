@@ -89,6 +89,9 @@ export default function MembersListPage() {
 
   const activeCount = members.filter((m) => m.memberStatus === "활동").length;
   const withdrawnCount = members.filter((m) => m.memberStatus === "제적").length;
+  const congregationCount = members.filter(
+    (m) => m.congregationMember && m.memberStatus !== "제적",
+  ).length;
   const hasFilters = positionFilter || departmentFilter || activeFilter;
 
   return (
@@ -260,8 +263,18 @@ export default function MembersListPage() {
             ))}
           </div>
         )}
-        {withdrawnCount > 0 && (
-          <div className="mt-6 border-t pt-5">
+        <div className="mt-6 border-t pt-5 space-y-2">
+          <Link
+            href="/members/congregation"
+            className="flex items-center justify-between rounded-lg border px-4 py-3 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+          >
+            <span>공동의회회원 명부</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs">{congregationCount}명</span>
+              <ArrowRight weight="light" className="h-4 w-4" />
+            </div>
+          </Link>
+          {withdrawnCount > 0 && (
             <Link
               href="/members/withdrawn"
               className="flex items-center justify-between rounded-lg border px-4 py-3 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
@@ -272,8 +285,8 @@ export default function MembersListPage() {
                 <ArrowRight weight="light" className="h-4 w-4" />
               </div>
             </Link>
-          </div>
-        )}
+          )}
+        </div>
       </main>
     </div>
   );
