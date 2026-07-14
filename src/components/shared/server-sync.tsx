@@ -32,8 +32,10 @@ export function ServerSync() {
     };
     document.addEventListener("visibilitychange", handleVisibility);
 
-    // 2초마다 버전 폴링
-    const poll = setInterval(() => pollForChanges(), 2_000);
+    // 2초마다 버전 폴링 (백그라운드 탭은 건너뜀 — 탭 복귀 시 visibilitychange가 즉시 최신화)
+    const poll = setInterval(() => {
+      if (!document.hidden) pollForChanges();
+    }, 2_000);
 
     // 동기화 상태
     let pendingTimeout: ReturnType<typeof setTimeout> | null = null;

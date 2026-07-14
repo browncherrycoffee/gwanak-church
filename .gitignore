@@ -46,3 +46,6 @@ next-env.d.ts
 # 로컬 백업 데이터 (교인 PII — 절대 커밋 금지)
 /관악교회 교적부 백업 데이터/
 /backup.log
+
+# 로컬 도구 산출물
+.playwright-mcp/

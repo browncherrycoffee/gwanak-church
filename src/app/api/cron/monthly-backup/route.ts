@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { put } from "@vercel/blob";
+import { encryptBackup } from "@/lib/backup-crypto";
 import { db } from "@/db";
 import { members } from "@/db/schema";
 import { sql } from "drizzle-orm";
@@ -44,7 +45,7 @@ export async function GET(request: Request) {
 
     const blob = await put(
       `gwanak-backup-${yearMonth}.json`,
-      JSON.stringify(payload),
+      encryptBackup(JSON.stringify(payload)),
       {
         access: "public",
         contentType: "application/json",

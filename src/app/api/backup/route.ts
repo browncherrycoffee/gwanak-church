@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { put, head, BlobNotFoundError } from "@vercel/blob";
 import { verifyAuthToken } from "@/lib/auth";
+import { encryptBackup, decryptBackup } from "@/lib/backup-crypto";
 import type { Member } from "@/types";
 
 const COOKIE_NAME = "gwanak-auth";
@@ -45,7 +46,7 @@ export async function GET() {
       return NextResponse.json({ error: "백업 파일을 읽을 수 없습니다." }, { status: 500 });
     }
 
-    const payload = (await res.json()) as BackupPayload;
+    const payload = JSON.parse(decryptBackup(await res.text())) as BackupPayload;
     return NextResponse.json({
       exportedAt: payload.exportedAt,
       count: payload.count,
@@ -90,7 +91,7 @@ export async function POST(request: Request) {
   };
 
   try {
-    const blob = await put(BLOB_PATHNAME, JSON.stringify(payload), {
+    const blob = await put(BLOB_PATHNAME, encryptBackup(JSON.stringify(payload)), {
       access: "public",
       contentType: "application/json",
       allowOverwrite: true,
