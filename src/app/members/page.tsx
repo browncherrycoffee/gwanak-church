@@ -60,6 +60,7 @@ export default function MembersListPage() {
   const [activeFilter, setActiveFilter] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [showFilters, setShowFilters] = useState(false);
+  const [view, setView] = useState<"all" | "congregation">("all");
 
   const members = useSyncExternalStore(subscribe, getMembers, getMembers);
 
@@ -69,8 +70,17 @@ export default function MembersListPage() {
     [members],
   );
 
+  // 공동의회회원 탭: 공동의회회원만 표시
+  const viewMembers = useMemo(
+    () =>
+      view === "congregation"
+        ? activeMembers.filter((m) => m.congregationMember)
+        : activeMembers,
+    [activeMembers, view],
+  );
+
   const filtered = useMemo(() => {
-    let result = query ? searchMembers(activeMembers, query) : activeMembers;
+    let result = query ? searchMembers(viewMembers, query) : viewMembers;
 
     if (positionFilter) {
       result = result.filter((m) => m.position === positionFilter);
@@ -85,7 +95,7 @@ export default function MembersListPage() {
     }
 
     return query ? result : sortMembers(result, sortKey);
-  }, [activeMembers, query, positionFilter, departmentFilter, activeFilter, sortKey]);
+  }, [viewMembers, query, positionFilter, departmentFilter, activeFilter, sortKey]);
 
   const activeCount = members.filter((m) => m.memberStatus === "활동").length;
   const withdrawnCount = members.filter((m) => m.memberStatus === "제적").length;
@@ -219,13 +229,41 @@ export default function MembersListPage() {
 
       {/* 목록 */}
       <main className="mx-auto max-w-5xl px-4 py-6">
+        {/* 전체 / 공동의회회원 탭 */}
+        <div className="mb-4 flex rounded-lg border p-1 text-sm font-medium">
+          <button
+            type="button"
+            onClick={() => setView("all")}
+            className={`flex-1 rounded-md px-3 py-2 transition-colors ${
+              view === "all"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            전체등록교인 {activeMembers.length}명
+          </button>
+          <button
+            type="button"
+            onClick={() => setView("congregation")}
+            className={`flex-1 rounded-md px-3 py-2 transition-colors ${
+              view === "congregation"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            공동의회회원 {congregationCount}명
+          </button>
+        </div>
+
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <h1 className="text-lg font-bold">전체등록교인</h1>
+            <h1 className="text-lg font-bold">
+              {view === "congregation" ? "공동의회회원" : "전체등록교인"}
+            </h1>
             <Badge variant="secondary">{filtered.length}명</Badge>
-            {filtered.length !== activeMembers.length && (
+            {filtered.length !== viewMembers.length && (
               <span className="text-xs text-muted-foreground">
-                (전체 {activeMembers.length}명 중)
+                (전체 {viewMembers.length}명 중)
               </span>
             )}
           </div>
@@ -253,7 +291,9 @@ export default function MembersListPage() {
             <MagnifyingGlass weight="thin" className="mx-auto mb-4 h-12 w-12 text-muted-foreground/40" />
             <p className="font-medium">조건에 맞는 교인이 없습니다</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              검색어나 필터를 조정해 주세요
+              {view === "congregation" && !query && !hasFilters
+                ? "교인 정보 수정에서 공동의회회원을 “예”로 설정하면 여기에 표시됩니다"
+                : "검색어나 필터를 조정해 주세요"}
             </p>
           </div>
         ) : (
