@@ -107,4 +107,35 @@ const failed = results.filter((r) => !r.ok);
 console.log(
   `\n=== 헬스체크 ${failed.length === 0 ? "전체 통과" : `실패 ${failed.length}건`} (${results.length}개 항목) ===`
 );
+
+// 텔레그램 보고: 정상이면 한 줄 요약, 실패 시 상세 경고
+// (매일 도착 자체가 감시 시스템 생존 신호 역할도 함)
+async function sendTelegram() {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  if (!token || !chatId) return console.log("텔레그램 미설정 - 보고 생략");
+  const lines =
+    failed.length === 0
+      ? [
+          "✅ [교적부 헬스체크] 전체 통과",
+          ...results.map((r) => `· ${r.name}: ${r.detail}`),
+        ]
+      : [
+          `🚨 [교적부 헬스체크] 실패 ${failed.length}건 — 즉시 확인 필요`,
+          ...results.map((r) => `${r.ok ? "✅" : "❌"} ${r.name}: ${r.detail}`),
+        ];
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, text: lines.join("\n") }),
+    });
+    const body = await res.json();
+    console.log("텔레그램 보고:", body.ok ? "발송 완료" : `실패 ${JSON.stringify(body)}`);
+  } catch (e) {
+    console.log("텔레그램 보고 실패:", e.message);
+  }
+}
+await sendTelegram();
+
 if (failed.length > 0) process.exit(1);
