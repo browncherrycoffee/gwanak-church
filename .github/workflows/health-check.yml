@@ -28,3 +28,18 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: node scripts/health-check.mjs
+
+      - name: Restore rehearsal (최신 백업 복원 가능 검증, 실데이터 무변경)
+        env:
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+        run: |
+          URL=$(node -e "
+          fetch('https://blob.vercel-storage.com/?prefix=gwanak-backup-&limit=1000', {headers:{authorization:'Bearer '+process.env.BLOB_READ_WRITE_TOKEN}})
+            .then(r=>r.json()).then(d=>{
+              const daily=d.blobs.filter(b=>/gwanak-backup-\d{4}-\d{2}-\d{2}-\d{4}\.json/.test(b.pathname))
+                .sort((a,b)=>new Date(b.uploadedAt)-new Date(a.uploadedAt));
+              console.log(daily[0].url);
+            })")
+          node scripts/restore-backup.mjs "$URL"
