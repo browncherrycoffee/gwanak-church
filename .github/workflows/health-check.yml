@@ -1,0 +1,28 @@
+name: 교적부 헬스체크
+
+on:
+  schedule:
+    # 매일 23:30 KST (일일 백업 23:00 KST 완료 30분 후 검증)
+    - cron: "30 14 * * *"
+  workflow_dispatch:
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install postgres driver
+        run: npm install --no-save --no-package-lock postgres
+
+      - name: Run health check
+        env:
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+        run: node scripts/health-check.mjs
