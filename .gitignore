@@ -49,3 +49,6 @@ next-env.d.ts
 
 # 로컬 도구 산출물
 .playwright-mcp/
+
+# 개인 작업 노트
+/progress.md
