@@ -1,4 +1,9 @@
-// 나눔조 구성 (2026년 기준)
+// 나눔조 이름·순서 (조원 배정은 DB members.nanumjo 컬럼에서 관리)
+export const NANUMJO_NAMES = [
+  "사랑조", "희락조", "화평조", "인내조", "자비조", "양선조", "충성조", "온유조",
+] as const;
+
+// 2026년 초기 편성표 — scripts/seed-nanumjo.mjs로 DB에 이전 완료 (참고용 보관)
 export const NANUMJO: { name: string; members: string[] }[] = [
   {
     name: "사랑조",

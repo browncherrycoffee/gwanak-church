@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { FloppyDisk, ArrowLeft, Camera, Trash, Plus, X } from "@phosphor-icons/react";
 import { POSITIONS, DEPARTMENTS, BAPTISM_TYPES, GENDERS, MEMBER_STATUSES } from "@/lib/constants";
+import { NANUMJO_NAMES } from "@/lib/nanumjo-config";
 import { formatPhoneNumber, resizeImage } from "@/lib/utils";
 import { FamilyNameInput } from "@/components/members/family-name-input";
 import type { Member, MemberFormData } from "@/types";
@@ -31,6 +32,7 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
     position: initialData?.position ?? "성도",
     department: initialData?.department ?? "",
     district: initialData?.district ?? "",
+    nanumjo: initialData?.nanumjo ?? "",
     familyMembers: initialData?.familyMembers ?? [],
     baptismDate: initialData?.baptismDate ?? "",
     baptismType: initialData?.baptismType ?? "",
@@ -275,6 +277,20 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
                   onChange={(e) => handleChange("district", e.target.value)}
                   placeholder="예: 1구역"
                 />
+              </div>
+              <div>
+                <label htmlFor="member-nanumjo" className="text-sm font-medium mb-1.5 block">나눔조</label>
+                <select
+                  id="member-nanumjo"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={form.nanumjo}
+                  onChange={(e) => handleChange("nanumjo", e.target.value)}
+                >
+                  <option value="">미배정</option>
+                  {NANUMJO_NAMES.map((n) => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label htmlFor="member-registrationDate" className="text-sm font-medium mb-1.5 block">등록일</label>

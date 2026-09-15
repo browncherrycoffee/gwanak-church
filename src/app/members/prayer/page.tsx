@@ -6,9 +6,34 @@ import {
   Cross, ArrowLeft, Printer, TextAa, X, Users, ListBullets,
   Plus, PencilSimple, Check, Trash,
 } from "@phosphor-icons/react";
-import { getMembers, subscribe, addPrayerRequest, updatePrayerRequest, deletePrayerRequest } from "@/lib/member-store";
-import { NANUMJO } from "@/lib/nanumjo-config";
+import { getMembers, subscribe, addPrayerRequest, updatePrayerRequest, deletePrayerRequest, updateMember } from "@/lib/member-store";
+import { NANUMJO_NAMES } from "@/lib/nanumjo-config";
 import type { Member } from "@/types";
+
+// 나눔조별 구분 색상 (순서는 NANUMJO_NAMES와 동일)
+const GROUP_COLORS = [
+  { section: "border-rose-200 bg-rose-50/60", header: "bg-rose-100/80", title: "text-rose-800", chip: "bg-rose-100 text-rose-800 border-rose-200", chipActive: "bg-rose-600 text-white border-rose-600" },
+  { section: "border-amber-200 bg-amber-50/60", header: "bg-amber-100/80", title: "text-amber-800", chip: "bg-amber-100 text-amber-800 border-amber-200", chipActive: "bg-amber-600 text-white border-amber-600" },
+  { section: "border-emerald-200 bg-emerald-50/60", header: "bg-emerald-100/80", title: "text-emerald-800", chip: "bg-emerald-100 text-emerald-800 border-emerald-200", chipActive: "bg-emerald-600 text-white border-emerald-600" },
+  { section: "border-sky-200 bg-sky-50/60", header: "bg-sky-100/80", title: "text-sky-800", chip: "bg-sky-100 text-sky-800 border-sky-200", chipActive: "bg-sky-600 text-white border-sky-600" },
+  { section: "border-violet-200 bg-violet-50/60", header: "bg-violet-100/80", title: "text-violet-800", chip: "bg-violet-100 text-violet-800 border-violet-200", chipActive: "bg-violet-600 text-white border-violet-600" },
+  { section: "border-orange-200 bg-orange-50/60", header: "bg-orange-100/80", title: "text-orange-800", chip: "bg-orange-100 text-orange-800 border-orange-200", chipActive: "bg-orange-600 text-white border-orange-600" },
+  { section: "border-teal-200 bg-teal-50/60", header: "bg-teal-100/80", title: "text-teal-800", chip: "bg-teal-100 text-teal-800 border-teal-200", chipActive: "bg-teal-600 text-white border-teal-600" },
+  { section: "border-indigo-200 bg-indigo-50/60", header: "bg-indigo-100/80", title: "text-indigo-800", chip: "bg-indigo-100 text-indigo-800 border-indigo-200", chipActive: "bg-indigo-600 text-white border-indigo-600" },
+] as const;
+
+const UNASSIGNED_COLOR = {
+  section: "border-slate-200 bg-slate-50/60",
+  header: "bg-slate-100/80",
+  title: "text-slate-700",
+  chip: "bg-slate-100 text-slate-700 border-slate-200",
+  chipActive: "bg-slate-600 text-white border-slate-600",
+} as const;
+
+function getGroupColor(groupIdx: number, isUnassigned: boolean) {
+  if (isUnassigned) return UNASSIGNED_COLOR;
+  return GROUP_COLORS[groupIdx % GROUP_COLORS.length] ?? UNASSIGNED_COLOR;
+}
 
 const SIZE_LABELS = ["중", "대", "특대", "최대"] as const;
 
@@ -401,6 +426,7 @@ export default function PrayerListPage() {
   const [sizeIdx, setSizeIdx] = useState(1);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [view, setView] = useState<"all" | "group">("all");
+  const [addingGroup, setAddingGroup] = useState<string | null>(null);
   const members = useSyncExternalStore(subscribe, getMembers, getMembers);
 
   const selectedMember = selectedMemberId
@@ -411,20 +437,28 @@ export default function PrayerListPage() {
     .filter((m) => m.memberStatus === "활동")
     .sort((a, b) => a.name.localeCompare(b.name, "ko"));
 
-  const membersByName = new Map<string, Member>();
-  for (const m of members) {
-    if (m.memberStatus !== "활동") continue;
-    membersByName.set(m.name, m);
-    const normalized = m.name.replace(/[ABab]$/, "");
-    if (normalized !== m.name) membersByName.set(normalized, m);
+  // 나눔조 배정은 DB(members.nanumjo)에서 관리 — 활동 교인만 표시
+  const nanumjoGroups: { name: string; isUnassigned: boolean; members: Member[] }[] =
+    NANUMJO_NAMES.map((name) => ({
+      name,
+      isUnassigned: false,
+      members: active.filter((m) => m.nanumjo === name),
+    }));
+  const unassigned = active.filter(
+    (m) => !m.nanumjo || !NANUMJO_NAMES.includes(m.nanumjo as (typeof NANUMJO_NAMES)[number]),
+  );
+  if (unassigned.length > 0) {
+    nanumjoGroups.push({ name: "미배정", isUnassigned: true, members: unassigned });
   }
 
-  const nanumjoGroups = NANUMJO.map((group) => ({
-    name: group.name,
-    members: group.members
-      .map((name) => membersByName.get(name))
-      .filter((m): m is Member => m !== undefined),
-  }));
+  function scrollToGroup(name: string) {
+    document.getElementById(`jo-${name}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function handleAddToGroup(memberId: string, groupName: string) {
+    updateMember(memberId, { nanumjo: groupName });
+    setAddingGroup(null);
+  }
 
   return (
     <div className="min-h-screen">
@@ -525,40 +559,118 @@ export default function PrayerListPage() {
           </>
         ) : (
           <>
+            {/* 나눔조 바로가기 — 상단 고정 */}
+            <nav className="no-print sticky top-0 z-30 -mx-4 mb-5 border-b bg-background/95 px-4 py-2.5 backdrop-blur">
+              <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {nanumjoGroups.map((group, gi) => {
+                  const color = getGroupColor(gi, group.isUnassigned);
+                  return (
+                    <button
+                      key={group.name}
+                      type="button"
+                      onClick={() => scrollToGroup(group.name)}
+                      className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${color.chip} hover:opacity-80`}
+                    >
+                      {group.name} {group.members.length}
+                    </button>
+                  );
+                })}
+              </div>
+            </nav>
+
             <div className="mb-6 flex items-center justify-between no-print">
               <h1 className="text-xl font-bold">나눔조별 기도목록</h1>
               <span className="text-sm text-muted-foreground">
-                {NANUMJO.length}개 조
+                {NANUMJO_NAMES.length}개 조 · 활동 교인 {active.length}명
               </span>
             </div>
-            <div className="space-y-10">
-              {nanumjoGroups.map((group) => (
-                <section key={group.name}>
-                  <div className="flex items-center gap-3 mb-1 sticky top-0 bg-background/95 backdrop-blur py-2">
-                    <h2 className="text-base font-bold text-primary">{group.name}</h2>
-                    <span className="text-xs text-muted-foreground bg-muted rounded-full px-2 py-0.5">
-                      {group.members.length}명
-                    </span>
-                    <div className="flex-1 h-px bg-border" />
-                  </div>
-                  {group.members.length === 0 ? (
-                    <p className="text-sm text-muted-foreground/50 py-4 pl-2">해당 조원 없음</p>
-                  ) : (
-                    <div className="divide-y">
-                      {group.members.map((member, idx) => (
-                        <MemberPrayerRow
-                          key={member.id}
-                          member={member}
-                          idx={idx}
-                          sizeIdx={sizeIdx}
-                          onSelect={setSelectedMemberId}
-                          showNum={false}
-                        />
-                      ))}
+
+            <div className="space-y-8">
+              {nanumjoGroups.map((group, gi) => {
+                const color = getGroupColor(gi, group.isUnassigned);
+                // 추가 후보: 활동 교인 중 이 조에 속하지 않은 사람
+                const candidates = active.filter((m) => m.nanumjo !== group.name);
+                return (
+                  <section
+                    key={group.name}
+                    id={`jo-${group.name}`}
+                    className={`scroll-mt-16 overflow-hidden rounded-xl border-2 ${color.section}`}
+                  >
+                    {/* 조 헤더 */}
+                    <div className={`flex items-center gap-3 px-4 py-3 ${color.header}`}>
+                      <h2 className={`text-base font-bold ${color.title}`}>{group.name}</h2>
+                      <span className={`text-xs font-semibold ${color.title} opacity-70`}>
+                        {group.members.length}명
+                      </span>
+                      {!group.isUnassigned && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setAddingGroup(addingGroup === group.name ? null : group.name)
+                          }
+                          className={`no-print ml-auto flex items-center gap-1 rounded-md border bg-background/80 px-2.5 py-1 text-xs font-medium ${color.title} hover:bg-background transition-colors`}
+                        >
+                          {addingGroup === group.name ? (
+                            <>
+                              <X weight="bold" className="h-3 w-3" />
+                              닫기
+                            </>
+                          ) : (
+                            <>
+                              <Plus weight="bold" className="h-3 w-3" />
+                              조원 추가
+                            </>
+                          )}
+                        </button>
+                      )}
                     </div>
-                  )}
-                </section>
-              ))}
+
+                    {/* 조원 추가 패널 */}
+                    {addingGroup === group.name && (
+                      <div className="no-print border-b bg-background/70 px-4 py-3">
+                        <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                          {group.name}에 추가할 교인 선택 (현재 소속조에서 이동됩니다)
+                        </label>
+                        <select
+                          className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm sm:max-w-sm"
+                          value=""
+                          onChange={(e) => {
+                            if (e.target.value) handleAddToGroup(e.target.value, group.name);
+                          }}
+                        >
+                          <option value="">교인 선택...</option>
+                          {candidates.map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {m.name}
+                              {m.nanumjo ? ` (${m.nanumjo})` : " (미배정)"}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {/* 조원 목록 */}
+                    <div className="px-4 pb-2">
+                      {group.members.length === 0 ? (
+                        <p className="py-4 pl-1 text-sm text-muted-foreground/60">해당 조원 없음</p>
+                      ) : (
+                        <div className="divide-y divide-border/60">
+                          {group.members.map((member, idx) => (
+                            <MemberPrayerRow
+                              key={member.id}
+                              member={member}
+                              idx={idx}
+                              sizeIdx={sizeIdx}
+                              onSelect={setSelectedMemberId}
+                              showNum={false}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </section>
+                );
+              })}
             </div>
           </>
         )}

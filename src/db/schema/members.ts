@@ -11,6 +11,7 @@ export const members = pgTable("members", {
   position: varchar("position", { length: 30 }).default("성도"),
   department: varchar("department", { length: 50 }),
   district: varchar("district", { length: 50 }),
+  nanumjo: varchar("nanumjo", { length: 20 }),
   familyMembers: text("family_members").array().default([]).notNull(),
   familyHead: varchar("family_head", { length: 50 }),
   relationship: varchar("relationship", { length: 20 }),

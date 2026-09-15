@@ -22,6 +22,8 @@ export interface Member {
   position: string | null;
   department: string | null;
   district: string | null;
+  // 나눔조 (구버전 백업에는 없을 수 있어 optional)
+  nanumjo?: string | null;
   familyMembers: string[];
   // legacy fields kept for migration compat
   familyHead?: string | null;
@@ -53,6 +55,7 @@ export interface MemberFormData {
   position: string;
   department: string;
   district: string;
+  nanumjo: string;
   familyMembers: string[];
   baptismDate: string;
   baptismType: string;

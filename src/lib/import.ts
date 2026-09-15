@@ -92,6 +92,7 @@ export function parseCsvImport(csvText: string): { members: MemberFormData[]; er
       position: "성도",
       department: "",
       district: "",
+      nanumjo: "",
       familyMembers: [],
       baptismDate: "",
       baptismType: "",
