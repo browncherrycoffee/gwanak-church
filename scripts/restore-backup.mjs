@@ -25,7 +25,7 @@ import postgres from "postgres";
 
 const COLUMNS = [
   "id", "name", "phone", "address", "detail_address", "birth_date", "gender",
-  "position", "department", "district", "family_members", "family_head",
+  "position", "department", "district", "nanumjo", "family_members", "family_head",
   "relationship", "baptism_date", "baptism_type", "baptism_church",
   "registration_date", "member_join_date", "car_number", "notes", "photo_url",
   "member_status", "congregation_member", "prayer_requests", "pastoral_visits",
