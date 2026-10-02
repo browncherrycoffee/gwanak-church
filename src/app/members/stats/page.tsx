@@ -319,7 +319,21 @@ export default function StatsPage() {
 
   // 소속(부서)별 — 활동 교인 기준
   const byDepartment = useMemo(
-    () => groupMembers(active, (m) => m.department || "미배정", [...DEPARTMENTS]).sort((a, b) => b.count - a.count),
+    () => {
+      const map = new Map<string, Member[]>(DEPARTMENTS.map((d) => [d, []]));
+      for (const m of active) {
+        const depts = m.departments?.length ? m.departments : m.department ? [m.department] : ["미배정"];
+        for (const d of depts) {
+          const list = map.get(d);
+          if (list) list.push(m);
+          else map.set(d, [m]);
+        }
+      }
+      return [...map.entries()]
+        .map(([label, list]) => ({ label, count: list.length, members: list }))
+        .filter((x) => x.count > 0)
+        .sort((a, b) => b.count - a.count);
+    },
     [active],
   );
 

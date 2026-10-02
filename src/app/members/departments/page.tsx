@@ -33,15 +33,15 @@ export default function DepartmentsPage() {
     const noDept: typeof members = [];
 
     for (const m of activeMembers) {
-      if (m.department) {
-        const list = map.get(m.department);
-        if (list) {
-          list.push(m);
-        } else {
-          map.set(m.department, [m]);
-        }
-      } else {
+      const depts = (m.departments?.length ? m.departments : m.department ? [m.department] : []);
+      if (depts.length === 0) {
         noDept.push(m);
+        continue;
+      }
+      for (const dept of depts) {
+        const list = map.get(dept);
+        if (list) list.push(m);
+        else map.set(dept, [m]);
       }
     }
 

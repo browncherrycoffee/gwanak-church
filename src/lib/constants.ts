@@ -18,6 +18,7 @@ export const POSITION_ORDER: string[] = [
   "담임목사", "목사", "강도사", "전도사", "장로", "집사", "성도",
 ];
 
+// 2026-10 부서 체계 (member_departments 테이블·담당 지정과 이름이 정확히 일치해야 함)
 export const DEPARTMENTS = [
   "제1남전도회",
   "제1여전도회",
@@ -26,11 +27,10 @@ export const DEPARTMENTS = [
   "제3여전도회",
   "제4남녀전도회",
   "청년부(직장인)",
-  "청년부(대학SFC)",
-  "청년부",
-  "중고등부",
-  "유초등부",
-  "유아부",
+  "청년부(대학 SFC)",
+  "중고등부 SFC",
+  "초등부",
+  "영유치부",
 ] as const;
 
 export const BAPTISM_TYPES = [

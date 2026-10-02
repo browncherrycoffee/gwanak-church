@@ -86,7 +86,9 @@ export default function MembersListPage() {
       result = result.filter((m) => m.position === positionFilter);
     }
     if (departmentFilter) {
-      result = result.filter((m) => m.department === departmentFilter);
+      result = result.filter(
+        (m) => (m.departments ?? []).includes(departmentFilter) || m.department === departmentFilter,
+      );
     }
     if (activeFilter === "활동") {
       result = result.filter((m) => m.memberStatus === "활동");
