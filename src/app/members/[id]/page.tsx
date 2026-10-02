@@ -110,7 +110,8 @@ export default function MemberDetailPage({
   const scope = useSyncExternalStore(subscribeAuth, getScope, getScope);
   const isAdmin = auth?.isAdmin === true;
   const roleGrade = auth?.roleGrade ?? "없음";
-  const canPastoral = isAdmin || PASTORAL_GRADES.includes(roleGrade);
+  const canPastoral =
+    isAdmin || (auth?.pastoralAccess ?? PASTORAL_GRADES.includes(roleGrade));
   const nameOnly = scope === "name-only";
 
   useEffect(() => {
@@ -308,6 +309,8 @@ export default function MemberDetailPage({
   const nameOnlyRows = [
     { icon: UsersThree, label: "나눔조", value: member.nanumjo ?? null },
     { icon: UsersThree, label: "부서", value: (member.departments ?? []).join(", ") || null },
+    { icon: Phone, label: "연락처", value: member.phone },
+    { icon: MapPin, label: "주소", value: [member.address, member.detailAddress].filter(Boolean).join(" ") || null },
   ];
 
   return (

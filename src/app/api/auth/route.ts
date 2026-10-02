@@ -11,6 +11,7 @@ import {
   SESSION_DAYS_NORMAL,
   SESSION_DAYS_ADMIN,
 } from "@/lib/server-auth";
+import { canViewPastoral } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +29,7 @@ export async function GET() {
     adminVerified: user.adminVerified,
     assignments: user.assignments,
     memberId: user.memberId,
+    pastoralAccess: canViewPastoral(user), // 심방 화면 표시 여부 (판단은 서버 공통 규칙)
   });
 }
 

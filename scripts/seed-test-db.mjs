@@ -71,6 +71,10 @@ const FAKE_USERS = [
   { key: "dualLeader",   name: "겸임테스트",     grade: "없음",    isAdmin: false, assigns: [["nanumjo","인내조"],["department","청년부(직장인)"]] },
   { key: "nobody",       name: "무권한테스트",   grade: "없음",    isAdmin: false, assigns: [] },
   { key: "disabled",     name: "중지테스트",     grade: "집사",    isAdmin: false, assigns: [], disabled: true },
+  // 심방 범위 한정: 집사 등급이지만 심방기록은 담당 부서(청년부(직장인)) 성도만
+  { key: "scopedDeacon", name: "청년심방테스트", grade: "집사",    isAdmin: false, assigns: [["department","청년부(직장인)"]], pastoralScope: "units" },
+  // 행정지원 + 본인 작성 심방만 (류영협 강도사 유형)
+  { key: "staffOwn",     name: "행정심방테스트", grade: "행정지원", isAdmin: false, assigns: [], pastoralScope: "own" },
 ];
 
 const codes = {};
@@ -79,10 +83,10 @@ for (const u of FAKE_USERS) {
   const code = generateCode();
   codes[u.key] = code;
   const [row] = await sql`
-    INSERT INTO app_users (display_name, title, role_grade, is_admin, status, code_hash, code_issued_at, member_id)
+    INSERT INTO app_users (display_name, title, role_grade, is_admin, status, code_hash, code_issued_at, member_id, pastoral_scope)
     VALUES (${u.name}, ${u.grade === "없음" ? null : u.grade}, ${u.grade}, ${u.isAdmin},
             ${u.disabled ? "disabled" : "active"}, ${hashCode(code)}, now(),
-            ${u.memberKey ? memberIds[u.memberKey] : null})
+            ${u.memberKey ? memberIds[u.memberKey] : null}, ${u.pastoralScope ?? "all"})
     RETURNING id`;
   userIds[u.key] = row.id;
   for (const [t, n] of u.assigns) {

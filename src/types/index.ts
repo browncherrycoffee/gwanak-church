@@ -46,12 +46,16 @@ export interface Member {
   updatedAt: string;
 }
 
-// 직분 없는 조장·부서장에게 보내는 축소 정보 — 이름·소속만
+// 직분 없는 조장·부서장에게 보내는 축소 정보 — 이름·소속·연락처·주소
+// (2026-10-02 사용자 결정으로 연락처·주소 포함. 생년월일·세례·심방·메모 등은 계속 제외)
 export interface MemberNameOnly {
   id: string;
   name: string;
   nanumjo: string | null;
   departments: string[];
+  phone: string | null;
+  address: string | null;
+  detailAddress: string | null;
   memberStatus: string;
   nameOnly: true;
 }

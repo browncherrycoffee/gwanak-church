@@ -125,11 +125,23 @@ export function canDeletePrayer(user: AuthUser): boolean {
 // 공유 심방기록: 관리자·목사·장로·집사 (행정지원 제외 — 존재 자체를 숨김)
 export function canViewPastoral(user: AuthUser): boolean {
   if (user.isAdmin) return true;
-  return ["목사", "장로", "집사"].includes(user.roleGrade);
+  if (["목사", "장로", "집사"].includes(user.roleGrade)) return true;
+  // 'own': 등급상 심방 열람이 없어도(예: 행정지원) 본인이 직접 심방하고
+  // 작성한 기록은 쓰고 볼 수 있다 (예: 류영협 강도사)
+  return user.pastoralScope === "own";
 }
 
 export function canAddPastoral(user: AuthUser): boolean {
   return canViewPastoral(user);
+}
+
+// 사용자별 심방 범위 한정: pastoralScope가 'units'이면
+// 자신이 담당(조장·부서장)한 조·부서 성도의 심방기록만 보고 쓸 수 있다.
+// (예: 청년부 담당 사역자는 청년부 성도의 심방기록만)
+export function pastoralMemberAllowed(user: AuthUser, target: MemberUnits): boolean {
+  if (user.isAdmin) return true;
+  if (user.pastoralScope !== "units") return true;
+  return leadsMember(user, target);
 }
 
 export function canEditPastoral(user: AuthUser, authorUserId: string | null): boolean {
