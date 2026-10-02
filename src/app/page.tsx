@@ -84,7 +84,12 @@ export default function HomePage() {
           {auth?.authenticated && (
             <span className="hidden sm:inline text-xs text-muted-foreground font-medium bg-secondary px-2 py-1 rounded-full">
               {auth.displayName}
-              {auth.roleGrade && auth.roleGrade !== "없음" ? ` · ${auth.roleGrade}` : ""}
+              {/* 직함(강도사·전도사 등)을 우선 표시 — 권한 등급은 내부 분류일 뿐 호칭이 아님 */}
+              {auth.title
+                ? ` · ${auth.title}`
+                : auth.roleGrade && auth.roleGrade !== "없음"
+                  ? ` · ${auth.roleGrade}`
+                  : ""}
             </span>
           )}
           {isAdmin && (
