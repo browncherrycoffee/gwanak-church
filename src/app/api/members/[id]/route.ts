@@ -1,22 +1,22 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { eq, sql } from "drizzle-orm";
-import { verifyAuthToken } from "@/lib/auth";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { members } from "@/db/schema";
+import { members, memberDepartments } from "@/db/schema";
+import { getAuthUser } from "@/lib/server-auth";
+import {
+  canEditMember,
+  canDeleteMember,
+  getRegistrant,
+  memberViewScope,
+} from "@/lib/permissions";
+import { logAudit } from "@/lib/audit";
 import type { Member } from "@/types";
 
 export const dynamic = "force-dynamic";
 
-// 교인 1명만 원자적으로 업데이트 — 동시 편집 충돌 최소화
-// POST도 허용 (모바일 네트워크 호환성)
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  return handleUpdate(request, params);
-}
-
+// 교인 1명 기본정보 수정 — 등록한 사람 본인 또는 관리자.
+// 소속(나눔조·부서)·직분·공동의회회원은 관리자만 변경 가능 (비관리자 요청에서는 해당 필드 무시).
+// 저장된 행 기준으로 검증하므로 요청 body로 id·대상을 바꿔치기할 수 없다.
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -24,126 +24,109 @@ export async function PATCH(
   return handleUpdate(request, params);
 }
 
-async function handleUpdate(
+export async function POST(
   request: Request,
-  params: Promise<{ id: string }>,
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  const { id } = await params;
+  return handleUpdate(request, params);
+}
 
-  const cookieStore = await cookies();
-  const token = cookieStore.get("gwanak-auth")?.value;
-  if (!token || !(await verifyAuthToken(token))) {
-    return NextResponse.json({ ok: false }, { status: 401 });
+async function handleUpdate(request: Request, params: Promise<{ id: string }>) {
+  const { id } = await params;
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+
+  const existingRows = await db.select().from(members).where(eq(members.id, id)).limit(1);
+  const existing = existingRows[0];
+  if (!existing) return NextResponse.json({ error: "대상 없음" }, { status: 404 });
+
+  const registrant = await getRegistrant(id);
+  if (!canEditMember(user, registrant)) {
+    return NextResponse.json({ error: "수정 권한이 없습니다." }, { status: 403 });
   }
 
+  let body: unknown;
   try {
-    const { member } = (await request.json()) as { member: Member };
-    if (!member || member.id !== id) {
-      return NextResponse.json({ ok: false }, { status: 400 });
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "잘못된 요청 형식입니다." }, { status: 400 });
+  }
+  const { member } = (body && typeof body === "object" ? body : {}) as { member?: Partial<Member> };
+  if (!member) return NextResponse.json({ error: "데이터가 없습니다." }, { status: 400 });
+
+  const isAdmin = user.isAdmin;
+  try {
+    await db
+      .update(members)
+      .set({
+        name: typeof member.name === "string" && member.name.trim() ? member.name : existing.name,
+        phone: member.phone ?? null,
+        address: member.address ?? null,
+        detailAddress: member.detailAddress ?? null,
+        birthDate: member.birthDate ?? null,
+        gender: member.gender ?? null,
+        district: member.district ?? null,
+        familyMembers: Array.isArray(member.familyMembers)
+          ? member.familyMembers
+          : existing.familyMembers,
+        baptismDate: member.baptismDate ?? null,
+        baptismType: member.baptismType ?? null,
+        baptismChurch: member.baptismChurch ?? null,
+        registrationDate: member.registrationDate ?? null,
+        memberJoinDate: member.memberJoinDate ?? null,
+        carNumber: member.carNumber ?? null,
+        notes: member.notes ?? null,
+        photoUrl: member.photoUrl ?? null,
+        memberStatus: member.memberStatus ?? existing.memberStatus,
+        // ↓ 권한에 영향을 주는 필드 — 관리자만. 비관리자 값은 DB 기존 값 유지.
+        position: isAdmin ? (member.position ?? existing.position) : existing.position,
+        nanumjo: isAdmin ? (member.nanumjo ?? null) : existing.nanumjo,
+        congregationMember: isAdmin
+          ? (member.congregationMember ?? existing.congregationMember)
+          : existing.congregationMember,
+        updatedAt: new Date(),
+      })
+      .where(eq(members.id, id));
+
+    // 다중 부서 소속 — 관리자만
+    if (isAdmin && Array.isArray(member.departments)) {
+      await db.delete(memberDepartments).where(eq(memberDepartments.memberId, id));
+      if (member.departments.length > 0) {
+        await db.insert(memberDepartments).values(
+          member.departments.map((d) => ({ memberId: id, departmentName: String(d) })),
+        );
+      }
     }
 
-    const values = {
-      id: member.id,
-      name: member.name,
-      gender: member.gender ?? null,
-      birthDate: member.birthDate ?? null,
-      phone: member.phone ?? null,
-      address: member.address ?? null,
-      detailAddress: member.detailAddress ?? null,
-      department: member.department ?? null,
-      district: member.district ?? null,
-      nanumjo: member.nanumjo ?? null,
-      position: member.position ?? null,
-      familyHead: member.familyHead ?? null,
-      relationship: member.relationship ?? null,
-      baptismType: member.baptismType ?? null,
-      registrationDate: member.registrationDate ?? null,
-      carNumber: member.carNumber ?? null,
-      memberStatus: member.memberStatus ?? "활동",
-      congregationMember: member.congregationMember ?? false,
-      baptismDate: member.baptismDate ?? null,
-      baptismChurch: member.baptismChurch ?? null,
-      memberJoinDate: member.memberJoinDate ?? null,
-      photoUrl: member.photoUrl ?? null,
-      notes: member.notes ?? null,
-      familyMembers: member.familyMembers ?? [],
-      prayerRequests: member.prayerRequests ?? [],
-      pastoralVisits: member.pastoralVisits ?? [],
-      createdAt: member.createdAt ? new Date(member.createdAt) : new Date(),
-      updatedAt: new Date(),
-    };
-
-    // upsert: 없으면 INSERT, 있으면 UPDATE (새 교인 추가도 지원)
-    // 동시 편집 충돌 시 1회 재시도
-    const doUpsert = () =>
-      db
-        .insert(members)
-        .values(values)
-        .onConflictDoUpdate({
-          target: members.id,
-          set: {
-            name: sql`excluded.name`,
-            gender: sql`excluded.gender`,
-            birthDate: sql`excluded.birth_date`,
-            phone: sql`excluded.phone`,
-            address: sql`excluded.address`,
-            detailAddress: sql`excluded.detail_address`,
-            department: sql`excluded.department`,
-            district: sql`excluded.district`,
-            nanumjo: sql`excluded.nanumjo`,
-            position: sql`excluded.position`,
-            familyHead: sql`excluded.family_head`,
-            relationship: sql`excluded.relationship`,
-            baptismType: sql`excluded.baptism_type`,
-            registrationDate: sql`excluded.registration_date`,
-            carNumber: sql`excluded.car_number`,
-            memberStatus: sql`excluded.member_status`,
-            congregationMember: sql`excluded.congregation_member`,
-            baptismDate: sql`excluded.baptism_date`,
-            baptismChurch: sql`excluded.baptism_church`,
-            memberJoinDate: sql`excluded.member_join_date`,
-            photoUrl: sql`excluded.photo_url`,
-            notes: sql`excluded.notes`,
-            familyMembers: sql`excluded.family_members`,
-            prayerRequests: sql`excluded.prayer_requests`,
-            pastoralVisits: sql`excluded.pastoral_visits`,
-            updatedAt: sql`NOW()`,
-          },
-        });
-
-    try {
-      await doUpsert();
-    } catch (innerErr) {
-      // 동시 쓰기 충돌 시 한 번 재시도
-      console.error("[PATCH] upsert 1차 실패, 재시도:", innerErr);
-      await doUpsert();
-    }
-
+    await logAudit(user.id, "member.update", "member", id);
     return NextResponse.json({ ok: true });
-  } catch (outerErr) {
-    const err = outerErr as Record<string, unknown>;
-    const cause = err?.cause ? String(err.cause).slice(0, 200) : undefined;
-    console.error("[PATCH] upsert 실패:", cause ?? outerErr);
-    return NextResponse.json({ ok: false, error: cause }, { status: 500 });
+  } catch (err) {
+    console.error("[PATCH /api/members/[id]]", err);
+    return NextResponse.json({ error: "저장 실패" }, { status: 500 });
   }
 }
 
+// 삭제는 관리자만 — 작성자 본인도 불가
 export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-
-  const cookieStore = await cookies();
-  const token = cookieStore.get("gwanak-auth")?.value;
-  if (!token || !(await verifyAuthToken(token))) {
-    return NextResponse.json({ ok: false }, { status: 401 });
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+  if (!canDeleteMember(user)) {
+    return NextResponse.json({ error: "삭제는 관리자만 할 수 있습니다." }, { status: 403 });
+  }
+  if (memberViewScope(user) !== "full") {
+    return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
   }
 
   try {
     await db.delete(members).where(eq(members.id, id));
+    await logAudit(user.id, "member.delete", "member", id);
     return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ ok: false }, { status: 500 });
+  } catch (err) {
+    console.error("[DELETE /api/members/[id]]", err);
+    return NextResponse.json({ error: "삭제 실패" }, { status: 500 });
   }
 }

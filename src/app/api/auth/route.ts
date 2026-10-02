@@ -1,106 +1,123 @@
 import { NextResponse } from "next/server";
 import { headers, cookies } from "next/headers";
-import { createAuthToken, verifyAuthToken } from "@/lib/auth";
-import { checkRateLimit, recordFailedAttempt, resetAttempts } from "@/lib/rate-limit";
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { appUsers, sessions } from "@/db/schema";
+import { checkLoginAllowed, recordLoginAttempt } from "@/lib/login-throttle";
+import { hashCode, generateSessionToken, hashSessionToken, normalizeCode } from "@/lib/access-codes";
+import {
+  getAuthUser,
+  SESSION_COOKIE,
+  SESSION_DAYS_NORMAL,
+  SESSION_DAYS_ADMIN,
+} from "@/lib/server-auth";
+import { logAudit } from "@/lib/audit";
 
+export const dynamic = "force-dynamic";
+
+// GET — 현재 로그인 상태와 내 권한 요약 (화면 구성용. 권한 판단은 서버가 다시 한다)
 export async function GET() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("gwanak-auth")?.value;
-  if (!token) return NextResponse.json({ authenticated: false });
-  const ok = await verifyAuthToken(token);
-  return NextResponse.json({ authenticated: ok });
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ authenticated: false });
+  return NextResponse.json({
+    authenticated: true,
+    displayName: user.displayName,
+    title: user.title,
+    roleGrade: user.roleGrade,
+    isAdmin: user.isAdmin,
+    adminVerified: user.adminVerified,
+    assignments: user.assignments,
+    memberId: user.memberId,
+  });
 }
-
-const COOKIE_NAME = "gwanak-auth";
-const MAX_AGE = 60 * 60 * 24 * 7; // 7 days
-const MAX_PASSWORD_LENGTH = 200;
 
 function getClientIp(headerStore: Headers): string {
   return headerStore.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
 }
 
-async function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// POST — 접속 코드 로그인
 export async function POST(request: Request) {
   const headerStore = await headers();
   const ip = getClientIp(headerStore);
 
-  // Rate limiting check
-  const rateCheck = checkRateLimit(ip);
+  const rateCheck = await checkLoginAllowed(ip);
   if (!rateCheck.allowed) {
     return NextResponse.json(
-      { error: `너무 많은 시도입니다. ${rateCheck.retryAfterSeconds}초 후 다시 시도하세요.` },
+      { error: rateCheck.reason ?? "너무 많은 시도입니다." },
       { status: 429 },
     );
   }
 
-  // Parse body safely
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json(
-      { error: "잘못된 요청 형식입니다." },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "잘못된 요청 형식입니다." }, { status: 400 });
   }
+  const { code } = (body && typeof body === "object" ? body : {}) as { code?: string };
 
-  const { password } = (body && typeof body === "object" ? body : {}) as { password?: string };
-
-  const adminPassword = process.env.ADMIN_PASSWORD;
-  if (!adminPassword) {
-    return NextResponse.json(
-      { error: "서버 설정 오류" },
-      { status: 500 },
-    );
-  }
-
-  // Input validation
-  if (!password || typeof password !== "string" || password.length > MAX_PASSWORD_LENGTH) {
-    recordFailedAttempt(ip);
+  if (!code || typeof code !== "string" || code.length > 20 || normalizeCode(code).length !== 6) {
+    await recordLoginAttempt(ip, false);
     await delay(1000);
-    return NextResponse.json(
-      { error: "비밀번호가 올바르지 않습니다." },
-      { status: 401 },
-    );
+    return NextResponse.json({ error: "접속 코드가 올바르지 않습니다." }, { status: 401 });
   }
 
-  if (password !== adminPassword) {
-    recordFailedAttempt(ip);
+  const rows = await db
+    .select({
+      id: appUsers.id,
+      isAdmin: appUsers.isAdmin,
+      status: appUsers.status,
+    })
+    .from(appUsers)
+    .where(eq(appUsers.codeHash, hashCode(code)))
+    .limit(1);
+
+  const user = rows[0];
+  if (!user || user.status !== "active") {
+    await recordLoginAttempt(ip, false);
     await delay(1000);
-    return NextResponse.json(
-      { error: "비밀번호가 올바르지 않습니다." },
-      { status: 401 },
-    );
+    return NextResponse.json({ error: "접속 코드가 올바르지 않습니다." }, { status: 401 });
   }
 
-  // Success
-  resetAttempts(ip);
-  const token = await createAuthToken();
+  await recordLoginAttempt(ip, true);
+
+  const token = generateSessionToken();
+  const days = user.isAdmin ? SESSION_DAYS_ADMIN : SESSION_DAYS_NORMAL;
+  const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+  await db.insert(sessions).values({
+    tokenHash: hashSessionToken(token),
+    userId: user.id,
+    expiresAt,
+  });
+  await logAudit(user.id, "auth.login");
 
   const response = NextResponse.json({ ok: true });
-  response.cookies.set(COOKIE_NAME, token, {
+  response.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: MAX_AGE,
+    maxAge: days * 24 * 60 * 60,
     path: "/",
   });
-
+  // 구 공용 로그인 쿠키는 제거
+  response.cookies.set("gwanak-auth", "", { maxAge: 0, path: "/" });
   return response;
 }
 
+// DELETE — 로그아웃 (서버 세션 즉시 삭제)
 export async function DELETE() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SESSION_COOKIE)?.value;
+  if (token) {
+    try {
+      await db.delete(sessions).where(eq(sessions.tokenHash, hashSessionToken(token)));
+    } catch (err) {
+      console.error("[auth] 로그아웃 세션 삭제 실패:", err);
+    }
+  }
   const response = NextResponse.json({ ok: true });
-  response.cookies.set(COOKIE_NAME, "", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 0,
-    path: "/",
-  });
-
+  response.cookies.set(SESSION_COOKIE, "", { maxAge: 0, path: "/" });
   return response;
 }

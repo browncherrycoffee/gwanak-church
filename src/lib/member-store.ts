@@ -1,10 +1,49 @@
 "use client";
 
-import type { Member, MemberFormData, PrayerRequest, PastoralVisit } from "@/types";
+import type { Member, MemberFormData, MemberNameOnly } from "@/types";
 
 // ─── in-memory store ────────────────────────────────────────────────────────
 let members: Member[] = [];
 let listeners: Array<() => void> = [];
+
+// ─── 내 권한 정보 (화면 구성용 — 실제 권한 판단은 항상 서버가 한다) ────────────
+export interface AuthInfo {
+  authenticated: boolean;
+  displayName?: string;
+  title?: string | null;
+  roleGrade?: string;
+  isAdmin?: boolean;
+  adminVerified?: boolean;
+  assignments?: { unitType: string; unitName: string }[];
+  memberId?: string | null;
+}
+let authInfo: AuthInfo | null = null;
+let authListeners: Array<() => void> = [];
+let currentScope: "full" | "name-only" | "none" = "full";
+
+export function getAuthInfo(): AuthInfo | null {
+  return authInfo;
+}
+export function getScope(): "full" | "name-only" | "none" {
+  return currentScope;
+}
+export function subscribeAuth(listener: () => void) {
+  authListeners = [...authListeners, listener];
+  return () => { authListeners = authListeners.filter((l) => l !== listener); };
+}
+export async function loadAuthInfo(force = false): Promise<AuthInfo | null> {
+  if (typeof window === "undefined") return null;
+  if (authInfo && !force) return authInfo;
+  try {
+    const res = await fetch("/api/auth", { cache: "no-store" });
+    if (!res.ok) return authInfo;
+    authInfo = (await res.json()) as AuthInfo;
+    for (const l of authListeners) l();
+    return authInfo;
+  } catch {
+    return authInfo;
+  }
+}
 
 // ─── 동기화 상태 ────────────────────────────────────────────────────────────
 const pendingPatches = new Set<string>(); // 현재 PATCH 대기 중인 교인 ID
@@ -54,6 +93,24 @@ function scheduleRetry(memberId: string) {
     retryQueue.delete(memberId);
     schedulePatch(memberId);
   }, delay);
+}
+
+// 신규 성도 생성 — POST /api/members (서버가 등록자 기록, 권한 검증)
+function sendCreate(member: Member) {
+  if (typeof window === "undefined") return;
+  notifySyncStatus(true);
+  fetch("/api/members", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ member }),
+  })
+    .then((res) => {
+      if (res.ok) notifySyncError(false);
+      else notifySyncError(res.status === 401 ? "auth" : `server-${res.status}`);
+    })
+    .catch((err) => notifySyncError(`fetch-${String(err).slice(0, 40)}`))
+    .finally(() => { if (!isDirty()) notifySyncStatus(false); });
 }
 
 // ─── 개별 교인 POST (~5KB, 500ms) ──────────────────────────────────────────
@@ -156,27 +213,26 @@ function scheduleFullSync() {
   }, 1000);
 }
 
-// pagehide/beforeunload 즉시 동기화
+// pagehide/beforeunload 즉시 동기화 — 대기 중인 개별 저장만 keepalive로 전송
+// (전체 PUT은 관리자 복원 전용이라 여기서 쓰지 않는다)
 export function syncNow(): void {
   if (typeof window === "undefined") return;
   if (!isDirty()) return;
+  const ids = new Set<string>([...pendingPatches, ...patchTimers.keys()]);
   if (fullSyncTimer) { clearTimeout(fullSyncTimer); fullSyncTimer = null; }
   patchTimers.forEach((t) => clearTimeout(t));
   patchTimers.clear();
   pendingPatches.clear();
-
-  // keepalive는 64KB 제한 → 개별 pending patch만 전송
-  // 대기 중인 교인만 PATCH (전체 PUT 대신)
-  const data = [...members];
-  if (data.length === 0) return;
-
-  // 전체 PUT 대기 중이었으면 PUT, 아니면 스킵 (PATCH는 이미 개별 전송됨)
-  fetch("/api/members", {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-    keepalive: true,
-  }).catch(() => { /* best effort */ });
+  for (const id of ids) {
+    const member = members.find((m) => m.id === id);
+    if (!member) continue;
+    fetch(`/api/members/${id}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ member }),
+      keepalive: true,
+    }).catch(() => { /* best effort */ });
+  }
 }
 
 // ─── 서버 초기화 / 폴링 ────────────────────────────────────────────────────
@@ -199,13 +255,32 @@ export async function initFromServer(_force = false): Promise<void> {
   fetchInProgress = true;
   lastFetchAt = now;
   try {
+    await loadAuthInfo();
     const res = await fetch("/api/members", { cache: "no-store" });
     if (!res.ok) return;
-    const data = await res.json() as { members?: Member[]; exportedAt?: string } | null;
-    if (!data?.members || !Array.isArray(data.members) || data.members.length === 0) return;
+    const data = await res.json() as {
+      members?: (Member | MemberNameOnly)[];
+      scope?: "full" | "name-only" | "none";
+    } | null;
+    if (!data || !Array.isArray(data.members)) return;
     if (isDirty()) return;
 
-    members = data.members;
+    currentScope = data.scope ?? "full";
+    // 이름·소속만 받은 경우에도 화면 코드가 같은 Member 형태를 쓰도록 변환
+    // (서버가 민감 필드를 아예 보내지 않았으므로 전부 null)
+    members = data.members.map((m): Member =>
+      "nameOnly" in m
+        ? {
+            id: m.id, name: m.name, phone: null, address: null, detailAddress: null,
+            birthDate: null, gender: null, position: null, department: null,
+            departments: m.departments, district: null, nanumjo: m.nanumjo,
+            familyMembers: [], baptismDate: null, baptismType: null, baptismChurch: null,
+            registrationDate: null, memberJoinDate: null, carNumber: null, notes: null,
+            photoUrl: null, memberStatus: m.memberStatus, prayerRequests: [], pastoralVisits: [],
+            createdAt: "", updatedAt: "",
+          }
+        : m,
+    );
     for (const listener of listeners) listener();
     for (const listener of serverUpdateListeners) listener();
   } catch {
@@ -415,11 +490,11 @@ export function addMember(data: MemberFormData): Member {
     updatedAt: now,
   };
   members = [newMember, ...members];
-  // 새 교인은 POST로 개별 전송 (전체 PUT 대신)
-  schedulePatch(newMember.id);
+  // 신규 성도는 생성 전용 API로 전송 (서버가 등록자를 기록)
+  sendCreate(newMember);
 
-  // 양방향 가족 링크
-  if (newMember.name && familyMembers.length > 0) {
+  // 양방향 가족 링크 — 다른 성도 수정은 관리자만 가능하므로 관리자일 때만
+  if (authInfo?.isAdmin && newMember.name && familyMembers.length > 0) {
     const touched = mirrorFamilyLinks(newMember.id, newMember.name, [], familyMembers, now);
     for (const id of touched) schedulePatch(id);
   }
@@ -461,15 +536,15 @@ export function updateMember(id: string, data: Partial<MemberFormData>): Member 
 
   const touched = new Set<string>();
 
-  // 이름 변경 시 다른 교인의 familyMembers 안에서 이름 치환
-  if (existing.name && updated.name && existing.name !== updated.name) {
+  // 이름 변경 시 다른 교인의 familyMembers 안에서 이름 치환 — 관리자만
+  if (authInfo?.isAdmin && existing.name && updated.name && existing.name !== updated.name) {
     for (const tid of renameInFamilies(id, existing.name, updated.name, now)) {
       touched.add(tid);
     }
   }
 
-  // 가족 목록이 변경되었으면 양방향 거울 반영
-  if (familyChanged) {
+  // 가족 목록이 변경되었으면 양방향 거울 반영 — 다른 성도 수정은 관리자만
+  if (familyChanged && authInfo?.isAdmin) {
     const nameForLink = updated.name || existing.name;
     if (nameForLink) {
       for (const tid of mirrorFamilyLinks(id, nameForLink, existing.familyMembers, nextFamily, now)) {
@@ -539,184 +614,6 @@ export function resetMembers(): void {
   members = [];
   scheduleFullSync();
   for (const listener of listeners) listener();
-}
-
-export function addPrayerRequest(memberId: string, content: string): Member | null {
-  const index = members.findIndex((m) => m.id === memberId);
-  if (index === -1) return null;
-  const existing = members[index];
-  if (!existing) return null;
-
-  const newRequest: PrayerRequest = {
-    id: crypto.randomUUID(),
-    content,
-    createdAt: new Date().toISOString(),
-  };
-  const updated: Member = {
-    ...existing,
-    prayerRequests: [newRequest, ...existing.prayerRequests],
-    updatedAt: new Date().toISOString(),
-  };
-  members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
-  schedulePatch(memberId);
-  for (const listener of listeners) listener();
-  return updated;
-}
-
-export function deletePrayerRequest(memberId: string, requestId: string): Member | null {
-  const index = members.findIndex((m) => m.id === memberId);
-  if (index === -1) return null;
-  const existing = members[index];
-  if (!existing) return null;
-
-  const updated: Member = {
-    ...existing,
-    prayerRequests: existing.prayerRequests.filter((r) => r.id !== requestId),
-    updatedAt: new Date().toISOString(),
-  };
-  members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
-  schedulePatch(memberId);
-  for (const listener of listeners) listener();
-  return updated;
-}
-
-export function addPastoralVisit(memberId: string, visitedAt: string, content: string): Member | null {
-  const index = members.findIndex((m) => m.id === memberId);
-  if (index === -1) return null;
-  const existing = members[index];
-  if (!existing) return null;
-
-  const newVisit: PastoralVisit = {
-    id: crypto.randomUUID(),
-    visitedAt,
-    content,
-    createdAt: new Date().toISOString(),
-  };
-  const updated: Member = {
-    ...existing,
-    pastoralVisits: [newVisit, ...existing.pastoralVisits],
-    updatedAt: new Date().toISOString(),
-  };
-  members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
-  schedulePatch(memberId);
-  for (const listener of listeners) listener();
-  return updated;
-}
-
-export function deletePastoralVisit(memberId: string, visitId: string): Member | null {
-  const index = members.findIndex((m) => m.id === memberId);
-  if (index === -1) return null;
-  const existing = members[index];
-  if (!existing) return null;
-
-  const updated: Member = {
-    ...existing,
-    pastoralVisits: existing.pastoralVisits.filter((v) => v.id !== visitId),
-    updatedAt: new Date().toISOString(),
-  };
-  members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
-  schedulePatch(memberId);
-  for (const listener of listeners) listener();
-  return updated;
-}
-
-export function updatePrayerRequest(memberId: string, requestId: string, content: string): Member | null {
-  const index = members.findIndex((m) => m.id === memberId);
-  if (index === -1) return null;
-  const existing = members[index];
-  if (!existing) return null;
-
-  const updated: Member = {
-    ...existing,
-    prayerRequests: existing.prayerRequests.map((r) =>
-      r.id === requestId ? { ...r, content } : r,
-    ),
-    updatedAt: new Date().toISOString(),
-  };
-  members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
-  schedulePatch(memberId);
-  for (const listener of listeners) listener();
-  return updated;
-}
-
-export function updatePastoralVisit(memberId: string, visitId: string, visitedAt: string, content: string): Member | null {
-  const index = members.findIndex((m) => m.id === memberId);
-  if (index === -1) return null;
-  const existing = members[index];
-  if (!existing) return null;
-
-  const updated: Member = {
-    ...existing,
-    pastoralVisits: existing.pastoralVisits.map((v) =>
-      v.id === visitId ? { ...v, visitedAt, content } : v,
-    ),
-    updatedAt: new Date().toISOString(),
-  };
-  members = [...members.slice(0, index), updated, ...members.slice(index + 1)];
-  schedulePatch(memberId);
-  for (const listener of listeners) listener();
-  return updated;
-}
-
-export function bulkAddPrayerRequests(
-  entries: { memberId: string; prayers: { content: string; createdAt: string }[] }[],
-): { totalAdded: number } {
-  const now = new Date().toISOString();
-  let totalAdded = 0;
-  members = members.map((m) => {
-    const entry = entries.find((e) => e.memberId === m.id);
-    if (!entry) return m;
-    const existingContents = new Set(m.prayerRequests.map((r) => r.content.trim()));
-    const newRequests = entry.prayers
-      .filter((p) => !existingContents.has(p.content.trim()))
-      .map((p): PrayerRequest => ({
-        id: crypto.randomUUID(),
-        content: p.content,
-        createdAt: p.createdAt === "미기재" ? now : p.createdAt,
-      }));
-    if (newRequests.length === 0) return m;
-    totalAdded += newRequests.length;
-    const merged = [...m.prayerRequests, ...newRequests].sort((a, b) =>
-      b.createdAt.localeCompare(a.createdAt),
-    );
-    return { ...m, prayerRequests: merged, updatedAt: now };
-  });
-  if (totalAdded > 0) {
-    scheduleFullSync();
-    for (const listener of listeners) listener();
-  }
-  return { totalAdded };
-}
-
-export async function autoApplyPrayerImport(): Promise<void> {
-  if (typeof window === "undefined") return;
-  const PRAYER_IMPORT_VERSION_KEY = "gwanak-prayer-import-version";
-  try {
-    const res = await fetch("/data/prayer-import.json");
-    if (!res.ok) return;
-    const data = await res.json() as { version?: string; members?: Array<{ name: string; prayers: Array<{ createdAt: string; content: string }> }> };
-    if (!data?.version || !Array.isArray(data.members)) return;
-
-    const applied = localStorage.getItem(PRAYER_IMPORT_VERSION_KEY);
-    if (applied === data.version) return;
-
-    const nameToId = new Map(members.map((m) => [m.name, m.id]));
-    const entries = data.members
-      .map((entry) => {
-        const memberId = nameToId.get(entry.name);
-        if (!memberId) return null;
-        return { memberId, prayers: entry.prayers };
-      })
-      .filter((e): e is { memberId: string; prayers: { content: string; createdAt: string }[] } => e !== null);
-
-    const { totalAdded } = bulkAddPrayerRequests(entries);
-    localStorage.setItem(PRAYER_IMPORT_VERSION_KEY, data.version);
-    if (totalAdded > 0) {
-      console.info(`[prayer-import] ${data.version} 버전 적용: ${totalAdded}건 추가`);
-    }
-  } catch {
-    // ignore
-  }
 }
 
 export function replaceMembers(newMembers: Member[]): void {

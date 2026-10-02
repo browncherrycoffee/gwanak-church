@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useSyncExternalStore, useEffect } from "react";
+import { use, useState, useSyncExternalStore, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -39,15 +39,44 @@ import {
   toggleMemberStatus,
   getMembers,
   subscribe,
-  addPrayerRequest,
-  deletePrayerRequest,
-  updatePrayerRequest,
-  addPastoralVisit,
-  deletePastoralVisit,
-  updatePastoralVisit,
+  getAuthInfo,
+  loadAuthInfo,
+  subscribeAuth,
+  getScope,
 } from "@/lib/member-store";
+import {
+  subscribePrayers,
+  getPrayers,
+  getPrayersByMember,
+  loadPrayers,
+  addPrayer,
+  updatePrayer,
+  deletePrayer,
+} from "@/lib/prayer-store";
 import { formatDate } from "@/lib/utils";
-import { isPastoralAuthenticated, authenticatePastoral } from "@/lib/pastoral-auth";
+
+// GET /api/pastoral 응답 형태 (서버가 권한 필터를 끝낸 결과)
+interface PastoralNote {
+  id: string;
+  content: string;
+  authorName: string;
+  createdAt: string;
+  canEdit: boolean;
+  canDelete: boolean;
+}
+interface PastoralRecord {
+  id: string;
+  memberId: string;
+  visitedAt: string | null;
+  sharedContent: string | null;
+  authorName: string;
+  createdAt: string;
+  canEdit: boolean;
+  canDelete: boolean;
+  privateNotes: PastoralNote[];
+}
+
+const PASTORAL_GRADES = ["목사", "장로", "집사"];
 
 export default function MemberDetailPage({
   params,
@@ -60,31 +89,57 @@ export default function MemberDetailPage({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showPrayerForm, setShowPrayerForm] = useState(false);
   const [prayerInput, setPrayerInput] = useState("");
+  const [prayerError, setPrayerError] = useState<string | null>(null);
   const [editingPrayerId, setEditingPrayerId] = useState<string | null>(null);
   const [editingPrayerText, setEditingPrayerText] = useState("");
   const [showVisitForm, setShowVisitForm] = useState(false);
   const [visitDate, setVisitDate] = useState("");
-  const [visitContent, setVisitContent] = useState("");
+  const [visitShared, setVisitShared] = useState("");
+  const [visitPrivate, setVisitPrivate] = useState("");
+  const [visitError, setVisitError] = useState<string | null>(null);
   const [editingVisitId, setEditingVisitId] = useState<string | null>(null);
   const [editingVisitDate, setEditingVisitDate] = useState("");
   const [editingVisitText, setEditingVisitText] = useState("");
   const [showAllPrayers, setShowAllPrayers] = useState(false);
   const [showAllVisits, setShowAllVisits] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [pastoralUnlocked, setPastoralUnlocked] = useState(false);
-  const [pastoralPin, setPastoralPin] = useState("");
-  const [pastoralPinError, setPastoralPinError] = useState(false);
+  const [pastoralRecords, setPastoralRecords] = useState<PastoralRecord[]>([]);
+  const [pastoralDenied, setPastoralDenied] = useState(false);
+
+  // 권한 정보 — 실제 권한 판단은 서버가 하고, 여기서는 화면 구성에만 사용
+  const auth = useSyncExternalStore(subscribeAuth, getAuthInfo, () => null);
+  const scope = useSyncExternalStore(subscribeAuth, getScope, getScope);
+  const isAdmin = auth?.isAdmin === true;
+  const roleGrade = auth?.roleGrade ?? "없음";
+  const canPastoral = isAdmin || PASTORAL_GRADES.includes(roleGrade);
+  const nameOnly = scope === "name-only";
 
   useEffect(() => {
-    fetch("/api/auth")
-      .then((r) => r.json())
-      .then((d) => setIsAdmin(d?.authenticated ?? false))
-      .catch(() => {});
-    setPastoralUnlocked(isPastoralAuthenticated());
+    loadAuthInfo();
+    loadPrayers();
   }, []);
+
+  const loadPastoral = useCallback(async () => {
+    try {
+      const res = await fetch("/api/pastoral", { cache: "no-store" });
+      if (res.status === 403) {
+        setPastoralDenied(true);
+        return;
+      }
+      if (!res.ok) return;
+      const data = (await res.json()) as { records?: PastoralRecord[] };
+      if (Array.isArray(data.records)) setPastoralRecords(data.records);
+    } catch {
+      // 네트워크 오류 — 기존 상태 유지
+    }
+  }, []);
+
+  useEffect(() => {
+    if (canPastoral) loadPastoral();
+  }, [canPastoral, loadPastoral]);
 
   // subscribe to store changes
   useSyncExternalStore(subscribe, getMembers, getMembers);
+  useSyncExternalStore(subscribePrayers, getPrayers, getPrayers);
   const member = getMember(id);
 
   if (!member) {
@@ -104,6 +159,125 @@ export default function MemberDetailPage({
   const handleDelete = () => {
     deleteMember(id);
     router.push("/members");
+  };
+
+  // ─── 기도제목 (prayer-store, 서버 권한 검증) ────────────────────────────
+  const memberPrayers = getPrayersByMember(member.id);
+  const canLikelyAddPrayer =
+    isAdmin || roleGrade !== "없음" || (auth?.assignments?.length ?? 0) > 0;
+  const showPrayerCard = !nameOnly && (canLikelyAddPrayer || memberPrayers.length > 0);
+
+  const handleAddPrayer = async () => {
+    if (!prayerInput.trim()) return;
+    const result = await addPrayer(member.id, prayerInput.trim());
+    if (!result.ok) {
+      setPrayerError(result.error ?? "저장에 실패했습니다.");
+      return;
+    }
+    setPrayerError(null);
+    setPrayerInput("");
+    setShowPrayerForm(false);
+  };
+
+  const handleUpdatePrayer = async (prayerId: string) => {
+    if (!editingPrayerText.trim()) return;
+    const result = await updatePrayer(prayerId, editingPrayerText.trim());
+    if (!result.ok) {
+      setPrayerError(result.error ?? "수정에 실패했습니다.");
+      return;
+    }
+    setPrayerError(null);
+    setEditingPrayerId(null);
+  };
+
+  const handleDeletePrayer = async (prayerId: string) => {
+    const result = await deletePrayer(prayerId);
+    if (!result.ok) setPrayerError(result.error ?? "삭제에 실패했습니다.");
+    else setPrayerError(null);
+  };
+
+  // ─── 심방 기록 (/api/pastoral) ──────────────────────────────────────────
+  const memberVisits = pastoralRecords.filter((r) => r.memberId === member.id);
+
+  const handleAddVisit = async () => {
+    if (!visitShared.trim() && !visitPrivate.trim()) {
+      setVisitError("공유 심방기록 또는 비공개 메모 중 하나는 입력해야 합니다.");
+      return;
+    }
+    try {
+      const res = await fetch("/api/pastoral", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          memberId: member.id,
+          visitedAt: visitDate || null,
+          sharedContent: visitShared.trim() || undefined,
+          privateNote: visitPrivate.trim() || undefined,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setVisitError(data.error ?? `저장 실패 (${res.status})`);
+        return;
+      }
+      setVisitError(null);
+      setVisitDate("");
+      setVisitShared("");
+      setVisitPrivate("");
+      setShowVisitForm(false);
+      loadPastoral();
+    } catch {
+      setVisitError("네트워크 오류");
+    }
+  };
+
+  const handleUpdateVisit = async (recordId: string) => {
+    if (!editingVisitText.trim()) return;
+    try {
+      const res = await fetch(`/api/pastoral/${recordId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sharedContent: editingVisitText.trim(),
+          visitedAt: editingVisitDate || null,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setVisitError(data.error ?? `수정 실패 (${res.status})`);
+        return;
+      }
+      setVisitError(null);
+      setEditingVisitId(null);
+      loadPastoral();
+    } catch {
+      setVisitError("네트워크 오류");
+    }
+  };
+
+  const handleDeleteVisit = async (recordId: string) => {
+    try {
+      let res = await fetch(`/api/pastoral/${recordId}`, { method: "DELETE" });
+      if (res.status === 409) {
+        const data = (await res.json().catch(() => ({}))) as {
+          noteCount?: number;
+          message?: string;
+        };
+        const message =
+          data.message ?? `비공개 메모 ${data.noteCount ?? 0}건이 함께 삭제됩니다.`;
+        if (!window.confirm(`${message} 계속하시겠습니까?`)) return;
+        res = await fetch(`/api/pastoral/${recordId}?confirm=1`, { method: "DELETE" });
+      }
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setVisitError(data.error ?? `삭제 실패 (${res.status})`);
+        return;
+      }
+      setVisitError(null);
+      loadPastoral();
+    } catch {
+      setVisitError("네트워크 오류");
+    }
   };
 
   const fullAddress = [member.address, member.detailAddress].filter(Boolean).join(" ");
@@ -130,6 +304,12 @@ export default function MemberDetailPage({
     { icon: Cross, label: "세례받은 교회", value: member.baptismChurch },
   ];
 
+  // 이름·소속만 보기 — 서버가 민감 정보를 보내지 않았으므로 축소 화면만 렌더링
+  const nameOnlyRows = [
+    { icon: UsersThree, label: "나눔조", value: member.nanumjo ?? null },
+    { icon: UsersThree, label: "부서", value: (member.departments ?? []).join(", ") || null },
+  ];
+
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-50 border-b bg-background">
@@ -150,19 +330,19 @@ export default function MemberDetailPage({
               <Printer weight="light" className="h-4 w-4 sm:mr-1.5" />
               <span className="hidden sm:inline">인쇄</span>
             </Button>
+            {scope === "full" && (
+              <Button asChild variant="outline" size="sm" className="h-9 px-3">
+                <Link href={`/members/${id}/edit`}>
+                  <PencilSimple weight="light" className="h-4 w-4 sm:mr-1.5" />
+                  <span className="hidden sm:inline">수정</span>
+                </Link>
+              </Button>
+            )}
             {isAdmin && (
-              <>
-                <Button asChild variant="outline" size="sm" className="h-9 px-3">
-                  <Link href={`/members/${id}/edit`}>
-                    <PencilSimple weight="light" className="h-4 w-4 sm:mr-1.5" />
-                    <span className="hidden sm:inline">수정</span>
-                  </Link>
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setShowDeleteDialog(true)} className="h-9 px-3 text-destructive hover:text-destructive">
-                  <Trash weight="light" className="h-4 w-4 sm:mr-1.5" />
-                  <span className="hidden sm:inline">삭제</span>
-                </Button>
-              </>
+              <Button variant="outline" size="sm" onClick={() => setShowDeleteDialog(true)} className="h-9 px-3 text-destructive hover:text-destructive">
+                <Trash weight="light" className="h-4 w-4 sm:mr-1.5" />
+                <span className="hidden sm:inline">삭제</span>
+              </Button>
             )}
           </div>
         </div>
@@ -173,7 +353,7 @@ export default function MemberDetailPage({
         <div className="mb-6 flex items-start justify-between">
           <div className="flex items-center gap-4">
             <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-secondary text-primary overflow-hidden">
-              {member.photoUrl ? (
+              {!nameOnly && member.photoUrl ? (
                 <Image
                   src={member.photoUrl}
                   alt={member.name}
@@ -223,6 +403,28 @@ export default function MemberDetailPage({
           )}
         </div>
 
+        {nameOnly ? (
+          /* 이름·소속만 보기 — 연락처·주소·생년월일·사진·세례·가족·기도제목·심방 비표시 */
+          <Card>
+            <CardContent className="p-5">
+              <h2 className="text-sm font-semibold text-muted-foreground mb-4">소속 정보</h2>
+              <div className="space-y-3">
+                {nameOnlyRows.map((row) => row.value && (
+                  <div key={row.label} className="flex items-start gap-3">
+                    <row.icon weight="light" className="mt-0.5 h-4 w-4 text-muted-foreground shrink-0" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">{row.label}</p>
+                      <p className="text-sm">{row.value}</p>
+                    </div>
+                  </div>
+                ))}
+                {!nameOnlyRows.some((row) => row.value) && (
+                  <p className="text-sm text-muted-foreground">소속 정보가 없습니다.</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
         <div className="space-y-6">
           {/* 기본 정보 */}
           <Card>
@@ -350,6 +552,7 @@ export default function MemberDetailPage({
           )}
 
           {/* 기도제목 */}
+          {showPrayerCard && (
           <Card>
             <CardContent className="p-5">
               <div className="flex items-center justify-between mb-4">
@@ -357,18 +560,19 @@ export default function MemberDetailPage({
                   <Heart weight="light" className="h-4 w-4" />
                   기도제목
                 </h2>
-                {isAdmin && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-9 px-3 text-sm"
-                    onClick={() => { setShowPrayerForm((v) => !v); setPrayerInput(""); }}
-                  >
-                    <Plus weight="bold" className="h-3.5 w-3.5 mr-1" />
-                    추가
-                  </Button>
-                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 px-3 text-sm"
+                  onClick={() => { setShowPrayerForm((v) => !v); setPrayerInput(""); setPrayerError(null); }}
+                >
+                  <Plus weight="bold" className="h-3.5 w-3.5 mr-1" />
+                  추가
+                </Button>
               </div>
+              {prayerError && (
+                <p className="mb-3 text-xs text-destructive">{prayerError}</p>
+              )}
               {showPrayerForm && (
                 <div className="mb-4 space-y-2">
                   <textarea
@@ -383,7 +587,7 @@ export default function MemberDetailPage({
                       variant="outline"
                       size="sm"
                       className="h-9 text-sm"
-                      onClick={() => { setShowPrayerForm(false); setPrayerInput(""); }}
+                      onClick={() => { setShowPrayerForm(false); setPrayerInput(""); setPrayerError(null); }}
                     >
                       취소
                     </Button>
@@ -391,23 +595,17 @@ export default function MemberDetailPage({
                       size="sm"
                       className="h-9 text-sm"
                       disabled={!prayerInput.trim()}
-                      onClick={() => {
-                        if (prayerInput.trim()) {
-                          addPrayerRequest(id, prayerInput.trim());
-                          setPrayerInput("");
-                          setShowPrayerForm(false);
-                        }
-                      }}
+                      onClick={handleAddPrayer}
                     >
                       저장
                     </Button>
                   </div>
                 </div>
               )}
-              {member.prayerRequests.length === 0 ? (
+              {memberPrayers.length === 0 ? (
                 <p className="text-sm text-muted-foreground">등록된 기도제목이 없습니다.</p>
               ) : (() => {
-                const sorted = [...member.prayerRequests].sort((a, b) =>
+                const sorted = [...memberPrayers].sort((a, b) =>
                   b.createdAt.localeCompare(a.createdAt)
                 );
                 const total = sorted.length;
@@ -423,6 +621,7 @@ export default function MemberDetailPage({
                                 : { month: "long", day: "numeric" }
                             )
                           : "날짜 미기재"}
+                        <span className="ml-1.5 text-muted-foreground/70">{req.authorName}</span>
                       </p>
                       {editingPrayerId === req.id ? (
                         <div className="space-y-1.5">
@@ -434,7 +633,7 @@ export default function MemberDetailPage({
                           />
                           <div className="flex gap-1.5">
                             <Button size="sm" className="h-7 px-2 text-xs" disabled={!editingPrayerText.trim()}
-                              onClick={() => { updatePrayerRequest(id, req.id, editingPrayerText.trim()); setEditingPrayerId(null); }}>
+                              onClick={() => handleUpdatePrayer(req.id)}>
                               <Check weight="bold" className="h-3 w-3 mr-1" />저장
                             </Button>
                             <Button size="sm" variant="outline" className="h-7 px-2 text-xs"
@@ -447,16 +646,20 @@ export default function MemberDetailPage({
                         <p className="text-sm whitespace-pre-wrap">{req.content}</p>
                       )}
                     </div>
-                    {isAdmin && editingPrayerId !== req.id && (
+                    {editingPrayerId !== req.id && (req.canEdit || req.canDelete) && (
                       <div className="flex gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-primary"
-                          onClick={() => { setEditingPrayerId(req.id); setEditingPrayerText(req.content); }}>
-                          <PencilSimple weight="light" className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-                          onClick={() => deletePrayerRequest(id, req.id)}>
-                          <Trash weight="light" className="h-3.5 w-3.5" />
-                        </Button>
+                        {req.canEdit && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-primary"
+                            onClick={() => { setEditingPrayerId(req.id); setEditingPrayerText(req.content); }}>
+                            <PencilSimple weight="light" className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                        {req.canDelete && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                            onClick={() => handleDeletePrayer(req.id)}>
+                            <Trash weight="light" className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -518,8 +721,10 @@ export default function MemberDetailPage({
               })()}
             </CardContent>
           </Card>
+          )}
 
-          {/* 심방 기록 */}
+          {/* 심방 기록 — 목사·장로·집사·관리자에게만 카드 자체를 렌더링 (존재 여부도 비노출) */}
+          {canPastoral && !pastoralDenied && (
           <Card>
             <CardContent className="p-5">
               <div className="flex items-center justify-between mb-4">
@@ -527,150 +732,151 @@ export default function MemberDetailPage({
                   <House weight="light" className="h-4 w-4" />
                   심방 기록
                 </h2>
-                {isAdmin && pastoralUnlocked && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-9 px-3 text-sm"
-                    onClick={() => { setShowVisitForm((v) => !v); setVisitDate(""); setVisitContent(""); }}
-                  >
-                    <Plus weight="bold" className="h-3.5 w-3.5 mr-1" />
-                    추가
-                  </Button>
-                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 px-3 text-sm"
+                  onClick={() => { setShowVisitForm((v) => !v); setVisitDate(""); setVisitShared(""); setVisitPrivate(""); setVisitError(null); }}
+                >
+                  <Plus weight="bold" className="h-3.5 w-3.5 mr-1" />
+                  추가
+                </Button>
               </div>
-              {!isAdmin ? (
-                <div className="py-6 text-center">
-                  <LockSimple weight="light" className="mx-auto h-8 w-8 text-muted-foreground/30" />
-                  <p className="mt-2 text-sm text-muted-foreground">심방 기록은 비공개입니다</p>
-                </div>
-              ) : !pastoralUnlocked ? (
-                <div className="py-6 text-center space-y-3">
-                  <LockSimple weight="light" className="mx-auto h-8 w-8 text-muted-foreground/40" />
-                  <p className="text-sm text-muted-foreground">비밀번호를 입력하세요</p>
-                  <form
-                    className="flex gap-2 max-w-[220px] mx-auto"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      if (authenticatePastoral(pastoralPin)) {
-                        setPastoralUnlocked(true);
-                        setPastoralPin("");
-                      } else {
-                        setPastoralPinError(true);
-                        setPastoralPin("");
-                      }
-                    }}
-                  >
-                    <input
-                      type="password"
-                      inputMode="numeric"
-                      maxLength={6}
-                      value={pastoralPin}
-                      onChange={(e) => { setPastoralPin(e.target.value); setPastoralPinError(false); }}
-                      placeholder="비밀번호 6자리"
-                      className="flex h-9 flex-1 rounded-md border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                    />
-                    <Button type="submit" size="sm" className="h-9 shrink-0">확인</Button>
-                  </form>
-                  {pastoralPinError && <p className="text-xs text-destructive">비밀번호가 올바르지 않습니다</p>}
-                </div>
-              ) : (
-                <>
+              {visitError && (
+                <p className="mb-3 text-xs text-destructive">{visitError}</p>
+              )}
               {showVisitForm && (
-                <div className="mb-4 space-y-2">
-                  <input
-                    type="date"
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                    value={visitDate}
-                    onChange={(e) => setVisitDate(e.target.value)}
-                  />
-                  <textarea
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring"
-                    rows={3}
-                    placeholder="심방 내용을 입력하세요"
-                    value={visitContent}
-                    onChange={(e) => setVisitContent(e.target.value)}
-                  />
+                <div className="mb-4 space-y-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">심방일</p>
+                    <input
+                      type="date"
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                      value={visitDate}
+                      onChange={(e) => setVisitDate(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">공유 심방기록</p>
+                    <textarea
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+                      rows={3}
+                      placeholder="공유할 심방 내용을 입력하세요"
+                      value={visitShared}
+                      onChange={(e) => setVisitShared(e.target.value)}
+                    />
+                    <p className="text-[11px] text-muted-foreground mt-0.5">관리자·목사님·장로님·집사님이 열람할 수 있습니다.</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">비공개 심방메모 (선택)</p>
+                    <textarea
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+                      rows={3}
+                      placeholder="비공개로 남길 메모가 있으면 입력하세요"
+                      value={visitPrivate}
+                      onChange={(e) => setVisitPrivate(e.target.value)}
+                    />
+                    <p className="text-[11px] text-muted-foreground mt-0.5">작성자 본인·담임목사님·관리자만 열람할 수 있습니다.</p>
+                  </div>
                   <div className="flex gap-2 justify-end">
                     <Button
                       variant="outline"
                       size="sm"
                       className="h-9 text-sm"
-                      onClick={() => { setShowVisitForm(false); setVisitDate(""); setVisitContent(""); }}
+                      onClick={() => { setShowVisitForm(false); setVisitDate(""); setVisitShared(""); setVisitPrivate(""); setVisitError(null); }}
                     >
                       취소
                     </Button>
                     <Button
                       size="sm"
                       className="h-9 text-sm"
-                      disabled={!visitDate || !visitContent.trim()}
-                      onClick={() => {
-                        if (visitDate && visitContent.trim()) {
-                          addPastoralVisit(id, visitDate, visitContent.trim());
-                          setVisitDate("");
-                          setVisitContent("");
-                          setShowVisitForm(false);
-                        }
-                      }}
+                      disabled={!visitShared.trim() && !visitPrivate.trim()}
+                      onClick={handleAddVisit}
                     >
                       저장
                     </Button>
                   </div>
                 </div>
               )}
-              {member.pastoralVisits.length === 0 ? (
+              {memberVisits.length === 0 ? (
                 <p className="text-sm text-muted-foreground">등록된 심방 기록이 없습니다.</p>
               ) : (() => {
-                const sortedVisits = [...member.pastoralVisits].sort((a, b) =>
-                  b.visitedAt.localeCompare(a.visitedAt)
+                const sortedVisits = [...memberVisits].sort((a, b) =>
+                  (b.visitedAt ?? b.createdAt).localeCompare(a.visitedAt ?? a.createdAt)
                 );
                 const totalVisits = sortedVisits.length;
 
                 const renderVisitItem = (visit: (typeof sortedVisits)[number]) => (
-                  <div key={visit.id} className="flex items-start gap-3 group">
-                    <div className="flex-1 min-w-0">
-                      {editingVisitId === visit.id ? (
-                        <div className="space-y-1.5">
-                          <input
-                            type="date"
-                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                            value={editingVisitDate}
-                            onChange={(e) => setEditingVisitDate(e.target.value)}
-                          />
-                          <textarea
-                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring"
-                            rows={3}
-                            value={editingVisitText}
-                            onChange={(e) => setEditingVisitText(e.target.value)}
-                          />
-                          <div className="flex gap-1.5">
-                            <Button size="sm" className="h-7 px-2 text-xs" disabled={!editingVisitDate || !editingVisitText.trim()}
-                              onClick={() => { updatePastoralVisit(id, visit.id, editingVisitDate, editingVisitText.trim()); setEditingVisitId(null); }}>
-                              <Check weight="bold" className="h-3 w-3 mr-1" />저장
-                            </Button>
-                            <Button size="sm" variant="outline" className="h-7 px-2 text-xs"
-                              onClick={() => setEditingVisitId(null)}>
-                              <X weight="bold" className="h-3 w-3 mr-1" />취소
-                            </Button>
+                  <div key={visit.id} className="space-y-2">
+                    <div className="flex items-start gap-3 group">
+                      <div className="flex-1 min-w-0">
+                        {editingVisitId === visit.id ? (
+                          <div className="space-y-1.5">
+                            <input
+                              type="date"
+                              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                              value={editingVisitDate}
+                              onChange={(e) => setEditingVisitDate(e.target.value)}
+                            />
+                            <textarea
+                              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+                              rows={3}
+                              value={editingVisitText}
+                              onChange={(e) => setEditingVisitText(e.target.value)}
+                            />
+                            <div className="flex gap-1.5">
+                              <Button size="sm" className="h-7 px-2 text-xs" disabled={!editingVisitText.trim()}
+                                onClick={() => handleUpdateVisit(visit.id)}>
+                                <Check weight="bold" className="h-3 w-3 mr-1" />저장
+                              </Button>
+                              <Button size="sm" variant="outline" className="h-7 px-2 text-xs"
+                                onClick={() => setEditingVisitId(null)}>
+                                <X weight="bold" className="h-3 w-3 mr-1" />취소
+                              </Button>
+                            </div>
                           </div>
+                        ) : (
+                          <>
+                            <p className="text-xs text-muted-foreground mb-0.5">
+                              {visit.visitedAt ? formatDate(visit.visitedAt) : "날짜 미기재"}
+                              <span className="ml-1.5 text-muted-foreground/70">{visit.authorName}</span>
+                            </p>
+                            {visit.sharedContent && (
+                              <p className="text-sm whitespace-pre-wrap">{visit.sharedContent}</p>
+                            )}
+                          </>
+                        )}
+                      </div>
+                      {editingVisitId !== visit.id && (visit.canEdit || visit.canDelete) && (
+                        <div className="flex gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                          {visit.canEdit && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-primary"
+                              onClick={() => { setEditingVisitId(visit.id); setEditingVisitDate(visit.visitedAt ?? ""); setEditingVisitText(visit.sharedContent ?? ""); }}>
+                              <PencilSimple weight="light" className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          {visit.canDelete && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                              onClick={() => handleDeleteVisit(visit.id)}>
+                              <Trash weight="light" className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                         </div>
-                      ) : (
-                        <>
-                          <p className="text-xs text-muted-foreground mb-0.5">{formatDate(visit.visitedAt)}</p>
-                          <p className="text-sm whitespace-pre-wrap">{visit.content}</p>
-                        </>
                       )}
                     </div>
-                    {isAdmin && editingVisitId !== visit.id && (
-                      <div className="flex gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-primary"
-                          onClick={() => { setEditingVisitId(visit.id); setEditingVisitDate(visit.visitedAt); setEditingVisitText(visit.content); }}>
-                          <PencilSimple weight="light" className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-                          onClick={() => deletePastoralVisit(id, visit.id)}>
-                          <Trash weight="light" className="h-3.5 w-3.5" />
-                        </Button>
+                    {/* 비공개 메모 — 서버가 열람 권한을 필터링해서 내려준 것만 표시 */}
+                    {visit.privateNotes.length > 0 && (
+                      <div className="space-y-1.5 pl-3">
+                        {visit.privateNotes.map((note) => (
+                          <div key={note.id} className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <LockSimple weight="fill" className="h-3 w-3 text-amber-600" />
+                              <Badge variant="outline" className="text-[10px] px-1.5 border-amber-300 text-amber-700">비공개</Badge>
+                              <span className="text-xs text-muted-foreground">{note.authorName}</span>
+                            </div>
+                            <p className="text-sm whitespace-pre-wrap">{note.content}</p>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
@@ -709,11 +915,11 @@ export default function MemberDetailPage({
                   </div>
                 );
               })()}
-                </>
-              )}
             </CardContent>
           </Card>
+          )}
         </div>
+        )}
       </main>
 
       <ConfirmDialog

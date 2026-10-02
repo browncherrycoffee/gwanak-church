@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { verifyAuthToken } from "@/lib/auth";
 
-// 인증 없이 접근 가능한 경로
+// 1차 관문: 세션 쿠키가 없으면 로그인 화면으로.
+// 실제 인증·권한 판단은 모든 API가 DB의 세션·사용자 정보로 다시 수행한다
+// (middleware는 Edge 환경이라 DB 조회 없이 쿠키 존재만 확인 — 데이터는 API 뒤에만 있음).
 const PUBLIC_PATHS = ["/login", "/api/auth", "/api/cron"];
 const STATIC_PREFIXES = ["/_next", "/favicon.ico", "/fonts", "/images", "/manifest.json"];
 
-export async function middleware(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (
@@ -17,8 +18,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const authCookie = request.cookies.get("gwanak-auth");
-  if (!authCookie?.value || !(await verifyAuthToken(authCookie.value))) {
+  const session = request.cookies.get("gwanak-session");
+  if (!session?.value) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+    }
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("from", pathname);
     return NextResponse.redirect(loginUrl);

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import { encryptBackup } from "@/lib/backup-crypto";
 import { db } from "@/db";
-import { members } from "@/db/schema";
+import { members, appUsers, userAssignments, memberDepartments, prayers, pastoralRecords, pastoralNotes, memberRegistrants } from "@/db/schema";
 import { sql } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
@@ -32,15 +32,27 @@ export async function GET(request: Request) {
 
   try {
     const rows = await db.select().from(members).orderBy(sql`${members.createdAt} DESC`);
+    // 접근 권한 체계 테이블도 백업에 포함 (v2) — 코드 해시는 복원에 필요하므로 포함되지만
+    // 백업 전체가 AES-256-GCM 암호화되므로 평문 노출 없음
+    const accessData = {
+      appUsers: await db.select().from(appUsers),
+      userAssignments: await db.select().from(userAssignments),
+      memberDepartments: await db.select().from(memberDepartments),
+      prayers: await db.select().from(prayers),
+      pastoralRecords: await db.select().from(pastoralRecords),
+      pastoralNotes: await db.select().from(pastoralNotes),
+      memberRegistrants: await db.select().from(memberRegistrants),
+    };
 
     const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     const payload = {
-      version: 1,
+      version: 2,
       backupType: "monthly-auto",
       exportedAt: now.toISOString(),
       yearMonth,
       count: rows.length,
       members: rows,
+      access: accessData,
     };
 
     const blob = await put(

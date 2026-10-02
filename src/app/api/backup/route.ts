@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { put, head, BlobNotFoundError } from "@vercel/blob";
-import { verifyAuthToken } from "@/lib/auth";
+import { getAuthUser } from "@/lib/server-auth";
+import { canUseBackupTools } from "@/lib/permissions";
 import { encryptBackup, decryptBackup } from "@/lib/backup-crypto";
 import type { Member } from "@/types";
 
-const COOKIE_NAME = "gwanak-auth";
 const BLOB_PATHNAME = "gwanak-members-backup.json";
 
 interface BackupPayload {
@@ -15,15 +14,10 @@ interface BackupPayload {
   members: Member[];
 }
 
-async function getAuthToken(): Promise<string | undefined> {
-  const cookieStore = await cookies();
-  return cookieStore.get(COOKIE_NAME)?.value;
-}
-
+// 백업 도구는 관리자만 사용할 수 있다
 async function assertAuth(): Promise<boolean> {
-  const token = await getAuthToken();
-  if (!token) return false;
-  return verifyAuthToken(token);
+  const user = await getAuthUser();
+  return !!user && canUseBackupTools(user);
 }
 
 // GET /api/backup — 서버 백업에서 교적 데이터 조회
