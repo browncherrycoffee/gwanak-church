@@ -8,6 +8,8 @@ import {
   canEditPastoral,
   canDeletePastoral,
   canEditPastoralNote,
+  pastoralMemberAllowed,
+  loadMemberUnits,
 } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
 
@@ -30,6 +32,14 @@ export async function PATCH(
 
   if (!canEditPastoral(user, record.authorUserId)) {
     return NextResponse.json({ error: "수정 권한이 없습니다." }, { status: 403 });
+  }
+  // 범위 한정 사용자: 담당이 바뀌어 범위 밖이 된 기록은 작성자라도 수정 불가
+  if (!user.isAdmin && user.pastoralScope === "units") {
+    const unitMap = await loadMemberUnits([record.memberId]);
+    const u = unitMap.get(record.memberId);
+    if (!u || !pastoralMemberAllowed(user, u)) {
+      return NextResponse.json({ error: "담당 범위 밖 기록입니다." }, { status: 403 });
+    }
   }
 
   let body: unknown;

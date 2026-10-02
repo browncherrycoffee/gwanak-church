@@ -42,7 +42,7 @@ async function req(userKey, method, path, body) {
 }
 
 // ─── 0. 로그인 준비 (시도 제한 오염 방지를 위해 성공 로그인 먼저 전부 수행) ───
-const loginKeys = ["admin","pastor","elder","elderLeader","deacon","deaconLeader","staff","joLeader","deptLeader","dualLeader","nobody"];
+const loginKeys = ["admin","pastor","elder","elderLeader","deacon","deaconLeader","staff","joLeader","deptLeader","dualLeader","nobody","scopedDeacon","staffOwn"];
 for (const k of loginKeys) {
   const st = await login(k);
   if (st !== 200) { console.error(`로그인 실패: ${k} (${st}) — 중단`); process.exit(1); }
@@ -151,9 +151,10 @@ for (const k of ["admin", "pastor"]) {
   const first = mem.json?.members?.[0] ?? {};
   const nameOnly = mem.json?.scope === "name-only" &&
     mem.json?.members?.length === 3 &&
-    first.phone === undefined && first.address === undefined && first.birthDate === undefined;
+    first.phone !== undefined && first.address !== undefined &&
+    first.birthDate === undefined && first.notes === undefined && first.photoUrl === undefined;
   const past = await req("joLeader", "GET", "/api/pastoral");
-  check("8", "무직조장", "맡은 조 3명의 이름·소속만 + 심방 차단(403)",
+  check("8", "무직조장", "맡은 조 3명의 이름·소속·연락처·주소만(생년월일 등 차단) + 심방 차단(403)",
     nameOnly && past.status === 403,
     `scope=${mem.json?.scope}, ${mem.json?.members?.length}명, 심방 ${past.status}`);
 }
@@ -198,6 +199,36 @@ check("9", "전체", "성도 상세도 동일 API 경유 (별도 상세 API 없�
     prayers.length === adminPrayers.length && prayers.length >= 8 &&
     noLeak && addPast.status === 403 && addPrayer.status === 403,
     `성도 ${mem.json?.members?.length}/${adminMem.json?.members?.length}, 기도 ${prayers.length}/${adminPrayers.length}, 심방 ${past.status}`);
+}
+
+// ─── 심방 범위 한정(집사 등급, 청년부(직장인) 담당): 담당 부서 성도 기록만 ───────
+{
+  const records = await pastoralList("scopedDeacon");
+  // rec1=A(인내조+청년부(직장인)) → 보임 / rec2=D(인내조+제1여전도회) → 안 보임 / rec3=E 메모만 → 안 보임
+  const seesA = records.some((r) => r.id === recordIds.rec1);
+  const hidesD = !records.some((r) => r.id === recordIds.rec2);
+  const hidesE = !records.some((r) => r.id === recordIds.rec3);
+  const writeOut = await req("scopedDeacon", "POST", "/api/pastoral", { memberId: memberIds.D, sharedContent: "범위 밖 작성 시도" });
+  const writeIn = await req("scopedDeacon", "POST", "/api/pastoral", { memberId: memberIds.B, sharedContent: "범위 안 작성", visitedAt: "2026-10-02" });
+  check("심방범위한정", "청년심방담당", "담당 부서 성도 심방만 열람·작성 (범위 밖 403)",
+    seesA && hidesD && hidesE && writeOut.status === 403 && writeIn.status === 200,
+    `A보임:${seesA} D숨김:${hidesD} 범위밖작성:${writeOut.status} 범위안작성:${writeIn.status}`);
+}
+
+// ─── 행정지원 + 본인 심방(own): 작성 가능, 본인 기록만 열람 ───────────────────
+{
+  const before = await pastoralList("staffOwn");
+  const writeRes = await req("staffOwn", "POST", "/api/pastoral", {
+    memberId: memberIds.G, visitedAt: "2026-10-02",
+    sharedContent: "행정심방 공유 기록", privateNote: "행정심방 비공개 메모",
+  });
+  const after = await pastoralList("staffOwn");
+  const onlyOwn = Array.isArray(after) && after.length >= 1 &&
+    after.every((r) => r.authorName === "행정심방테스트") &&
+    !after.some((r) => r.id === recordIds.rec1 || r.id === recordIds.rec2);
+  check("심방own", "행정지원(본인심방)", "심방 작성 가능 + 본인 작성 기록만 열람(남의 기록 차단)",
+    Array.isArray(before) && writeRes.status === 200 && onlyOwn,
+    `작성 ${writeRes.status}, 목록 ${Array.isArray(after) ? after.length : after}건(전부 본인: ${onlyOwn})`);
 }
 
 // ─── 13. 목사: 열람은 전체, 남의 기록 수정·모든 삭제 거부 ─────────────────────

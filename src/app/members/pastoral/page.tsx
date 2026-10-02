@@ -49,6 +49,7 @@ function hasViewPermission(): boolean {
   const info = getAuthInfo();
   if (!info || !info.authenticated) return false;
   if (info.isAdmin) return true;
+  if (info.pastoralAccess !== undefined) return info.pastoralAccess; // 서버 판단 우선
   if (info.roleGrade && ALLOWED_GRADES.includes(info.roleGrade)) return true;
   return false;
 }

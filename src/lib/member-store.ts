@@ -16,6 +16,7 @@ export interface AuthInfo {
   adminVerified?: boolean;
   assignments?: { unitType: string; unitName: string }[];
   memberId?: string | null;
+  pastoralAccess?: boolean;
 }
 let authInfo: AuthInfo | null = null;
 let authListeners: Array<() => void> = [];
@@ -271,7 +272,7 @@ export async function initFromServer(_force = false): Promise<void> {
     members = data.members.map((m): Member =>
       "nameOnly" in m
         ? {
-            id: m.id, name: m.name, phone: null, address: null, detailAddress: null,
+            id: m.id, name: m.name, phone: m.phone, address: m.address, detailAddress: m.detailAddress,
             birthDate: null, gender: null, position: null, department: null,
             departments: m.departments, district: null, nanumjo: m.nanumjo,
             familyMembers: [], baptismDate: null, baptismType: null, baptismChurch: null,

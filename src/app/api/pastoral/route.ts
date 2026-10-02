@@ -3,7 +3,7 @@ import { eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { pastoralRecords, pastoralNotes, appUsers, members } from "@/db/schema";
 import { getAuthUser } from "@/lib/server-auth";
-import { canViewPastoral, canAddPastoral, canViewPastoralNote } from "@/lib/permissions";
+import { canViewPastoral, canAddPastoral, canViewPastoralNote, pastoralMemberAllowed, loadMemberUnits } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
@@ -20,10 +20,23 @@ export async function GET() {
   }
 
   try {
-    const records = await db
+    const allRecords = await db
       .select()
       .from(pastoralRecords)
       .orderBy(sql`${pastoralRecords.createdAt} DESC`);
+
+    // 사용자별 심방 범위 한정
+    let records = allRecords;
+    if (!user.isAdmin && user.pastoralScope === "own") {
+      // 본인이 작성한 기록만 (예: 행정지원 등급의 심방 사역자)
+      records = allRecords.filter((r) => r.authorUserId === user.id);
+    } else if (!user.isAdmin && user.pastoralScope === "units") {
+      const unitMap = await loadMemberUnits([...new Set(allRecords.map((r) => r.memberId))]);
+      records = allRecords.filter((r) => {
+        const u = unitMap.get(r.memberId);
+        return !!u && pastoralMemberAllowed(user, u);
+      });
+    }
 
     const recordIds = records.map((r) => r.id);
     const notes = recordIds.length
@@ -117,6 +130,15 @@ export async function POST(request: Request) {
 
   const exists = await db.select({ id: members.id }).from(members).where(eq(members.id, memberId)).limit(1);
   if (!exists[0]) return NextResponse.json({ error: "대상 성도가 없습니다." }, { status: 404 });
+
+  // 심방 범위 한정 사용자: 담당 조·부서 성도에게만 작성 가능
+  if (!user.isAdmin && user.pastoralScope === "units") {
+    const unitMap = await loadMemberUnits([memberId]);
+    const u = unitMap.get(memberId);
+    if (!u || !pastoralMemberAllowed(user, u)) {
+      return NextResponse.json({ error: "담당 범위 밖 성도의 심방기록은 작성할 수 없습니다." }, { status: 403 });
+    }
+  }
 
   try {
     const inserted = await db
