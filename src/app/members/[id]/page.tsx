@@ -164,9 +164,16 @@ export default function MemberDetailPage({
 
   // ─── 기도제목 (prayer-store, 서버 권한 검증) ────────────────────────────
   const memberPrayers = getPrayersByMember(member.id);
-  const canLikelyAddPrayer =
-    isAdmin || roleGrade !== "없음" || (auth?.assignments?.length ?? 0) > 0;
-  const showPrayerCard = !nameOnly && (canLikelyAddPrayer || memberPrayers.length > 0);
+  // 추가 버튼: 서버 규칙(canAddPrayer)과 동일 — 관리자·목사, 또는 이 성도의 조장·부서장만
+  const canAddPrayerHere =
+    isAdmin ||
+    roleGrade === "목사" ||
+    (auth?.assignments ?? []).some(
+      (a) =>
+        (a.unitType === "nanumjo" && !!member.nanumjo && a.unitName === member.nanumjo) ||
+        (a.unitType === "department" && (member.departments ?? []).includes(a.unitName)),
+    );
+  const showPrayerCard = !nameOnly && (canAddPrayerHere || memberPrayers.length > 0);
 
   const handleAddPrayer = async () => {
     if (!prayerInput.trim()) return;
@@ -563,15 +570,17 @@ export default function MemberDetailPage({
                   <Heart weight="light" className="h-4 w-4" />
                   기도제목
                 </h2>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-9 px-3 text-sm"
-                  onClick={() => { setShowPrayerForm((v) => !v); setPrayerInput(""); setPrayerError(null); }}
-                >
-                  <Plus weight="bold" className="h-3.5 w-3.5 mr-1" />
-                  추가
-                </Button>
+                {canAddPrayerHere && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 px-3 text-sm"
+                    onClick={() => { setShowPrayerForm((v) => !v); setPrayerInput(""); setPrayerError(null); }}
+                  >
+                    <Plus weight="bold" className="h-3.5 w-3.5 mr-1" />
+                    추가
+                  </Button>
+                )}
               </div>
               {prayerError && (
                 <p className="mb-3 text-xs text-destructive">{prayerError}</p>
