@@ -10,6 +10,21 @@ export const dynamic = "force-dynamic";
 
 const GRADES = ["목사", "장로", "집사", "행정지원", "없음"] as const;
 
+// 6자리 코드는 충돌 가능 — 사용 중인 해시와 겹치지 않는 코드를 뽑는다
+async function generateUniqueCode(): Promise<string> {
+  for (let i = 0; i < 20; i++) {
+    const code = generateAccessCode();
+    const dup = await db
+      .select({ id: appUsers.id })
+      .from(appUsers)
+      .where(eq(appUsers.codeHash, hashCode(code)))
+      .limit(1);
+    if (!dup[0]) return code;
+  }
+  throw new Error("코드 생성 실패 — 잠시 후 다시 시도하세요.");
+}
+
+
 // 관리자 전용 — 사용자 목록 (코드·해시는 절대 내려가지 않음)
 export async function GET() {
   const admin = await getVerifiedAdmin();
@@ -73,7 +88,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "권한 등급이 올바르지 않습니다." }, { status: 400 });
   }
 
-  const code = generateAccessCode();
+  const code = await generateUniqueCode();
   const inserted = await db
     .insert(appUsers)
     .values({
@@ -134,7 +149,7 @@ export async function PATCH(request: Request) {
   if (!rows[0]) return NextResponse.json({ error: "대상 없음" }, { status: 404 });
 
   if (action === "reissue-code") {
-    const code = generateAccessCode();
+    const code = await generateUniqueCode();
     await db
       .update(appUsers)
       .set({ codeHash: hashCode(code), codeIssuedAt: new Date(), updatedAt: new Date() })

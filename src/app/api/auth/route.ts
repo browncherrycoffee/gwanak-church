@@ -3,7 +3,7 @@ import { headers, cookies } from "next/headers";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { appUsers, sessions } from "@/db/schema";
-import { checkRateLimit, recordFailedAttempt, resetAttempts } from "@/lib/rate-limit";
+import { checkLoginAllowed, recordLoginAttempt } from "@/lib/login-throttle";
 import { hashCode, generateSessionToken, hashSessionToken, normalizeCode } from "@/lib/access-codes";
 import {
   getAuthUser,
@@ -42,10 +42,10 @@ export async function POST(request: Request) {
   const headerStore = await headers();
   const ip = getClientIp(headerStore);
 
-  const rateCheck = checkRateLimit(ip);
+  const rateCheck = await checkLoginAllowed(ip);
   if (!rateCheck.allowed) {
     return NextResponse.json(
-      { error: `너무 많은 시도입니다. ${rateCheck.retryAfterSeconds}초 후 다시 시도하세요.` },
+      { error: rateCheck.reason ?? "너무 많은 시도입니다." },
       { status: 429 },
     );
   }
@@ -58,8 +58,8 @@ export async function POST(request: Request) {
   }
   const { code } = (body && typeof body === "object" ? body : {}) as { code?: string };
 
-  if (!code || typeof code !== "string" || code.length > 60 || normalizeCode(code).length < 8) {
-    recordFailedAttempt(ip);
+  if (!code || typeof code !== "string" || code.length > 20 || normalizeCode(code).length !== 6) {
+    await recordLoginAttempt(ip, false);
     await delay(1000);
     return NextResponse.json({ error: "접속 코드가 올바르지 않습니다." }, { status: 401 });
   }
@@ -76,12 +76,12 @@ export async function POST(request: Request) {
 
   const user = rows[0];
   if (!user || user.status !== "active") {
-    recordFailedAttempt(ip);
+    await recordLoginAttempt(ip, false);
     await delay(1000);
     return NextResponse.json({ error: "접속 코드가 올바르지 않습니다." }, { status: 401 });
   }
 
-  resetAttempts(ip);
+  await recordLoginAttempt(ip, true);
 
   const token = generateSessionToken();
   const days = user.isAdmin ? SESSION_DAYS_ADMIN : SESSION_DAYS_NORMAL;

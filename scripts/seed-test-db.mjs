@@ -12,24 +12,23 @@ if (db !== "gwanak_test") {
   process.exit(1);
 }
 
-const ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+const used = new Set();
 function generateCode() {
-  const bytes = randomBytes(32);
-  let out = "";
-  for (let i = 0; i < 16; i++) {
-    const v = (bytes[i * 2] << 8) | bytes[i * 2 + 1];
-    out += ALPHABET[v % ALPHABET.length];
+  // 숫자 6자리, 시드 내 중복 방지
+  for (;;) {
+    let out = "";
+    const bytes = randomBytes(12);
+    for (let i = 0; i < 6; i++) out += String(bytes[i] % 10);
+    if (!used.has(out)) { used.add(out); return out; }
   }
-  return `GW-${out.slice(0, 4)}-${out.slice(4, 8)}-${out.slice(8, 12)}-${out.slice(12, 16)}`;
 }
 function hashCode(code) {
   const pepper = process.env.AUTH_SECRET || "";
-  const normalized = code.toUpperCase().replace(/[^A-Z2-9]/g, "");
-  return createHash("sha256").update(`${pepper}:${normalized}`).digest("hex");
+  return createHash("sha256").update(`${pepper}:${code.replace(/[^0-9]/g, "")}`).digest("hex");
 }
 
 // 초기화 (테스트 DB 한정)
-await sql`TRUNCATE audit_log, sessions, pastoral_notes, pastoral_records, prayers,
+await sql`TRUNCATE login_attempts, audit_log, sessions, pastoral_notes, pastoral_records, prayers,
   member_registrants, member_departments, user_assignments, app_users, members CASCADE`;
 
 // ─── 가짜 성도 (지시서 4번 예시 구조 재현: A=인내조+청년부, B=사랑조+청년부, C=사랑조+장년부성격) ───

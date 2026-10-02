@@ -1,28 +1,22 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomInt, randomBytes } from "node:crypto";
 
-// 접속 코드: GW-XXXX-XXXX-XXXX-XXXX
-// 혼동 문자(0,O,1,I,L) 제외 31자 알파벳 × 16자리 ≈ 79비트 — 추측 불가
-const ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
-const CODE_LENGTH = 16;
+// 접속 코드: 숫자 6자리 (사용자 결정 2026-10-02 — 지시서의 "추측 불가 길이" 요구 대신
+// 입력 편의를 우선. 짧은 길이는 DB 기반 시도 제한(login-throttle)으로 보완한다.)
+const CODE_LENGTH = 6;
 
 export function generateAccessCode(): string {
-  const bytes = randomBytes(CODE_LENGTH * 2);
   let out = "";
-  for (let i = 0; i < CODE_LENGTH; i++) {
-    // modulo bias 제거: 두 바이트씩 사용
-    const v = (bytes[i * 2]! << 8) | bytes[i * 2 + 1]!;
-    out += ALPHABET[v % ALPHABET.length];
-  }
-  return `GW-${out.slice(0, 4)}-${out.slice(4, 8)}-${out.slice(8, 12)}-${out.slice(12, 16)}`;
+  for (let i = 0; i < CODE_LENGTH; i++) out += String(randomInt(0, 10));
+  return out;
 }
 
-// 입력 정규화: 대소문자·붙임표·공백 무시, 혼동 문자 교정(O→0은 불가하므로 제외했음)
+// 입력 정규화: 숫자 외 문자(공백·하이픈 등) 제거
 export function normalizeCode(input: string): string {
-  return input.toUpperCase().replace(/[^A-Z2-9]/g, "");
+  return input.replace(/[^0-9]/g, "");
 }
 
-// 해시: 코드 자체가 고엔트로피 무작위 값이므로 pepper를 더한 SHA-256으로 충분
-// (사람이 정한 비밀번호가 아니므로 느린 해시가 필요 없음)
+// 해시: pepper(AUTH_SECRET, DB 밖 비밀값)를 더한 SHA-256.
+// 6자리는 pepper 없이는 사전 공격에 취약하므로 pepper가 필수 방어선이다.
 export function hashCode(code: string): string {
   const pepper = process.env.AUTH_SECRET || "";
   return createHash("sha256").update(`${pepper}:${normalizeCode(code)}`).digest("hex");

@@ -4,12 +4,9 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { LockSimple } from "@phosphor-icons/react";
 
-// 접속 코드 입력 보조: 대문자 변환 + 4자 단위 하이픈 (GW-XXXX-XXXX-XXXX-XXXX)
+// 접속 코드: 숫자 6자리
 function formatCodeInput(raw: string): string {
-  const chars = raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
-  const body = chars.startsWith("GW") ? chars.slice(2) : chars;
-  const groups = body.slice(0, 16).match(/.{1,4}/g) ?? [];
-  return groups.length ? ["GW", ...groups].join("-") : raw ? "GW-" : "";
+  return raw.replace(/[^0-9]/g, "").slice(0, 6);
 }
 
 function LoginForm() {
@@ -60,23 +57,23 @@ function LoginForm() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
             type="text"
+            inputMode="numeric"
             autoComplete="off"
-            autoCapitalize="characters"
             spellCheck={false}
             value={code}
             onChange={(e) => {
               setCode(formatCodeInput(e.target.value));
               setError("");
             }}
-            placeholder="GW-XXXX-XXXX-XXXX-XXXX"
+            placeholder="숫자 6자리"
             // biome-ignore lint/a11y/noAutofocus: intentional focus on single-field login form
             autoFocus
-            className="flex h-11 w-full rounded-md border bg-background px-3 py-2 text-center font-mono text-sm tracking-wider placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex h-11 w-full rounded-md border bg-background px-3 py-2 text-center font-mono text-lg tracking-[0.5em] placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
           {error && <p className="text-sm text-destructive">{error}</p>}
           <button
             type="submit"
-            disabled={submitting || code.replace(/[^A-Z0-9]/g, "").length < 10}
+            disabled={submitting || code.length !== 6}
             className="inline-flex h-10 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary-light disabled:opacity-50"
           >
             {submitting ? "확인 중..." : "접속"}

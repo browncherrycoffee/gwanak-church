@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { appUsers, sessions } from "@/db/schema";
-import { checkRateLimit, recordFailedAttempt, resetAttempts } from "@/lib/rate-limit";
+import { checkLoginAllowed, recordLoginAttempt } from "@/lib/login-throttle";
 import { hashCode } from "@/lib/access-codes";
 import { getAuthUser, ADMIN_REVERIFY_MINUTES } from "@/lib/server-auth";
 import { logAudit } from "@/lib/audit";
@@ -20,10 +20,10 @@ export async function POST(request: Request) {
 
   const headerStore = await headers();
   const ip = headerStore.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  const rateCheck = checkRateLimit(ip);
+  const rateCheck = await checkLoginAllowed(ip);
   if (!rateCheck.allowed) {
     return NextResponse.json(
-      { error: `너무 많은 시도입니다. ${rateCheck.retryAfterSeconds}초 후 다시 시도하세요.` },
+      { error: rateCheck.reason ?? "너무 많은 시도입니다." },
       { status: 429 },
     );
   }
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   const { code } = (body && typeof body === "object" ? body : {}) as { code?: string };
 
   if (!code || typeof code !== "string") {
-    recordFailedAttempt(ip);
+    await recordLoginAttempt(ip, false);
     return NextResponse.json({ error: "코드를 입력하세요." }, { status: 401 });
   }
 
@@ -48,12 +48,12 @@ export async function POST(request: Request) {
     .limit(1);
 
   if (!rows[0]?.codeHash || rows[0].codeHash !== hashCode(code)) {
-    recordFailedAttempt(ip);
+    await recordLoginAttempt(ip, false);
     await new Promise((r) => setTimeout(r, 1000));
     return NextResponse.json({ error: "코드가 일치하지 않습니다." }, { status: 401 });
   }
 
-  resetAttempts(ip);
+  await recordLoginAttempt(ip, true);
   const until = new Date(Date.now() + ADMIN_REVERIFY_MINUTES * 60 * 1000);
   await db.update(sessions).set({ adminVerifiedUntil: until }).where(eq(sessions.id, user.sessionId));
   await logAudit(user.id, "auth.admin-verify");

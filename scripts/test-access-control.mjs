@@ -323,7 +323,7 @@ check("9", "전체", "성도 상세도 동일 API 경유 (별도 상세 API 없�
   for (let i = 0; i < 7; i++) {
     const res = await fetch(`${BASE}/api/auth`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code: "GW-XXXX-XXXX-XXXX-XXXX" }),
+      body: JSON.stringify({ code: "000000" }),
     });
     if (res.status === 429) { limited = true; break; }
   }
