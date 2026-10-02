@@ -56,6 +56,9 @@ export interface MemberNameOnly {
   phone: string | null;
   address: string | null;
   detailAddress: string | null;
+  baptismType: string | null;
+  baptismDate: string | null;
+  baptismChurch: string | null;
   memberStatus: string;
   nameOnly: true;
 }

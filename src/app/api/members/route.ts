@@ -47,8 +47,8 @@ function rowToMember(
   };
 }
 
-// 직분 없는 조장·부서장용 축소 정보 — 이름·소속·연락처·주소까지만.
-// 생년월일·세례·가족·사진·비고 등은 서버가 아예 보내지 않는다.
+// 직분 없는 조장·부서장용 축소 정보 — 이름·소속·연락처·주소·세례 정보까지만.
+// 생년월일·가족·사진·비고 등은 서버가 아예 보내지 않는다.
 function rowToNameOnly(row: typeof members.$inferSelect, departments: string[]): MemberNameOnly {
   return {
     id: row.id,
@@ -58,6 +58,9 @@ function rowToNameOnly(row: typeof members.$inferSelect, departments: string[]):
     phone: row.phone ?? null,
     address: row.address ?? null,
     detailAddress: row.detailAddress ?? null,
+    baptismType: row.baptismType ?? null,
+    baptismDate: row.baptismDate ?? null,
+    baptismChurch: row.baptismChurch ?? null,
     memberStatus: row.memberStatus,
     nameOnly: true,
   };

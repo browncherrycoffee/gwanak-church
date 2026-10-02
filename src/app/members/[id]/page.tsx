@@ -318,6 +318,7 @@ export default function MemberDetailPage({
     { icon: UsersThree, label: "부서", value: (member.departments ?? []).join(", ") || null },
     { icon: Phone, label: "연락처", value: member.phone },
     { icon: MapPin, label: "주소", value: [member.address, member.detailAddress].filter(Boolean).join(" ") || null },
+    { icon: Cross, label: "세례", value: [member.baptismType, member.baptismDate ? formatDate(member.baptismDate) : null, member.baptismChurch].filter(Boolean).join(" · ") || null },
   ];
 
   return (

@@ -151,10 +151,10 @@ for (const k of ["admin", "pastor"]) {
   const first = mem.json?.members?.[0] ?? {};
   const nameOnly = mem.json?.scope === "name-only" &&
     mem.json?.members?.length === 3 &&
-    first.phone !== undefined && first.address !== undefined &&
+    first.phone !== undefined && first.address !== undefined && first.baptismType !== undefined &&
     first.birthDate === undefined && first.notes === undefined && first.photoUrl === undefined;
   const past = await req("joLeader", "GET", "/api/pastoral");
-  check("8", "무직조장", "맡은 조 3명의 이름·소속·연락처·주소만(생년월일 등 차단) + 심방 차단(403)",
+  check("8", "무직조장", "맡은 조 3명의 이름·소속·연락처·주소·세례만(생년월일 등 차단) + 심방 차단(403)",
     nameOnly && past.status === 403,
     `scope=${mem.json?.scope}, ${mem.json?.members?.length}명, 심방 ${past.status}`);
 }

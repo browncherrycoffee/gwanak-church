@@ -275,7 +275,7 @@ export async function initFromServer(_force = false): Promise<void> {
             id: m.id, name: m.name, phone: m.phone, address: m.address, detailAddress: m.detailAddress,
             birthDate: null, gender: null, position: null, department: null,
             departments: m.departments, district: null, nanumjo: m.nanumjo,
-            familyMembers: [], baptismDate: null, baptismType: null, baptismChurch: null,
+            familyMembers: [], baptismDate: m.baptismDate, baptismType: m.baptismType, baptismChurch: m.baptismChurch,
             registrationDate: null, memberJoinDate: null, carNumber: null, notes: null,
             photoUrl: null, memberStatus: m.memberStatus, prayerRequests: [], pastoralVisits: [],
             createdAt: "", updatedAt: "",
