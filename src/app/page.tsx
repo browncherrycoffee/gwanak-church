@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Cross, MagnifyingGlass, Users, UserPlus, User, UploadSimple, TreeStructure, Heart, House, Database, ChartBar, GearSix, SignOut, Car } from "@phosphor-icons/react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { getMembers, subscribe } from "@/lib/member-store";
+import { getMembers, subscribe, getAuthInfo, loadAuthInfo, subscribeAuth } from "@/lib/member-store";
 import { searchMembers } from "@/lib/search";
 
 export default function HomePage() {
@@ -17,18 +17,15 @@ export default function HomePage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const members = useSyncExternalStore(subscribe, getMembers, getMembers);
 
-  const [isAdmin, setIsAdmin] = useState(false);
-
+  const auth = useSyncExternalStore(subscribeAuth, getAuthInfo, () => null);
   useEffect(() => {
-    fetch("/api/auth")
-      .then((r) => r.json())
-      .then((d) => setIsAdmin(d?.authenticated ?? false))
-      .catch(() => {});
+    loadAuthInfo();
   }, []);
+  const isAdmin = auth?.isAdmin === true;
 
   const handleLogout = async () => {
     await fetch("/api/auth", { method: "DELETE" });
-    setIsAdmin(false);
+    window.location.href = "/login";
   };
 
   const nonRemoved = members.filter((m) => m.memberStatus !== "제적");
@@ -81,31 +78,33 @@ export default function HomePage() {
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center px-4">
-      {/* 관리자 버튼 */}
+      {/* 사용자 정보 + 관리자 메뉴 */}
       <div className="absolute top-4 right-4">
-        {isAdmin ? (
-          <div className="flex items-center gap-2">
-            <span className="hidden sm:inline text-xs text-primary font-medium bg-primary/10 px-2 py-1 rounded-full">
-              관리자
+        <div className="flex items-center gap-2">
+          {auth?.authenticated && (
+            <span className="hidden sm:inline text-xs text-muted-foreground font-medium bg-secondary px-2 py-1 rounded-full">
+              {auth.displayName}
+              {auth.roleGrade && auth.roleGrade !== "없음" ? ` · ${auth.roleGrade}` : ""}
             </span>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="flex items-center gap-1.5 rounded-md px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          )}
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className="flex items-center gap-1.5 rounded-md px-3 py-2 text-sm text-primary hover:bg-primary/5 transition-colors"
             >
-              <SignOut weight="light" className="h-4 w-4" />
-              <span>로그아웃</span>
-            </button>
-          </div>
-        ) : (
-          <Link
-            href="/login"
+              <GearSix weight="light" className="h-4 w-4" />
+              <span>관리자</span>
+            </Link>
+          )}
+          <button
+            type="button"
+            onClick={handleLogout}
             className="flex items-center gap-1.5 rounded-md px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
           >
-            <GearSix weight="light" className="h-4 w-4" />
-            <span>관리자 로그인</span>
-          </Link>
-        )}
+            <SignOut weight="light" className="h-4 w-4" />
+            <span>로그아웃</span>
+          </button>
+        </div>
       </div>
       {/* 로고 및 교회 이름 */}
       <div className="mb-10 flex flex-col items-center gap-3">

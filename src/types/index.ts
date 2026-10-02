@@ -20,7 +20,8 @@ export interface Member {
   birthDate: string | null;
   gender: string | null;
   position: string | null;
-  department: string | null;
+  department: string | null; // 구버전 단일 부서 (참고용 보존)
+  departments?: string[]; // 새 다중 부서 소속
   district: string | null;
   // 나눔조 (구버전 백업에는 없을 수 있어 optional)
   nanumjo?: string | null;
@@ -43,6 +44,16 @@ export interface Member {
   pastoralVisits: PastoralVisit[];
   createdAt: string;
   updatedAt: string;
+}
+
+// 직분 없는 조장·부서장에게 보내는 축소 정보 — 이름·소속만
+export interface MemberNameOnly {
+  id: string;
+  name: string;
+  nanumjo: string | null;
+  departments: string[];
+  memberStatus: string;
+  nameOnly: true;
 }
 
 export interface MemberFormData {

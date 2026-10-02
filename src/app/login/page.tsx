@@ -4,9 +4,17 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { LockSimple } from "@phosphor-icons/react";
 
+// 접속 코드 입력 보조: 대문자 변환 + 4자 단위 하이픈 (GW-XXXX-XXXX-XXXX-XXXX)
+function formatCodeInput(raw: string): string {
+  const chars = raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const body = chars.startsWith("GW") ? chars.slice(2) : chars;
+  const groups = body.slice(0, 16).match(/.{1,4}/g) ?? [];
+  return groups.length ? ["GW", ...groups].join("-") : raw ? "GW-" : "";
+}
+
 function LoginForm() {
   const searchParams = useSearchParams();
-  const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -19,7 +27,7 @@ function LoginForm() {
       const res = await fetch("/api/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ code }),
       });
 
       if (res.ok) {
@@ -28,8 +36,7 @@ function LoginForm() {
         window.location.href = from;
       } else {
         const data = await res.json().catch(() => ({}));
-        setError((data as { error?: string }).error || "비밀번호가 올바르지 않습니다.");
-        setPassword("");
+        setError((data as { error?: string }).error || "접속 코드가 올바르지 않습니다.");
         setSubmitting(false);
       }
     } catch {
@@ -47,33 +54,37 @@ function LoginForm() {
           </div>
           <h1 className="text-lg font-semibold">관악교회 교적부</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            비밀번호를 입력하세요
+            발급받은 본인의 접속 코드를 입력하세요
           </p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
-            type="password"
-            inputMode="numeric"
-            autoComplete="current-password"
-            value={password}
+            type="text"
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+            value={code}
             onChange={(e) => {
-              setPassword(e.target.value);
+              setCode(formatCodeInput(e.target.value));
               setError("");
             }}
-            placeholder="비밀번호"
+            placeholder="GW-XXXX-XXXX-XXXX-XXXX"
             // biome-ignore lint/a11y/noAutofocus: intentional focus on single-field login form
             autoFocus
-            className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex h-11 w-full rounded-md border bg-background px-3 py-2 text-center font-mono text-sm tracking-wider placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
           {error && <p className="text-sm text-destructive">{error}</p>}
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || code.replace(/[^A-Z0-9]/g, "").length < 10}
             className="inline-flex h-10 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary-light disabled:opacity-50"
           >
-            {submitting ? "확인 중..." : "로그인"}
+            {submitting ? "확인 중..." : "접속"}
           </button>
         </form>
+        <p className="mt-4 text-center text-xs text-muted-foreground">
+          코드를 잊으셨으면 관리자에게 재발급을 요청하세요.
+        </p>
       </div>
     </div>
   );

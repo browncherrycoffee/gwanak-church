@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import {
   initFromServer,
-  autoApplyPrayerImport,
   syncNow,
   subscribeSyncStatus,
   subscribeServerUpdate,
@@ -19,7 +18,7 @@ export function ServerSync() {
   const [syncError, setSyncError] = useState<string | false>(false);
 
   useEffect(() => {
-    initFromServer().then(() => autoApplyPrayerImport());
+    initFromServer();
 
     // pagehide: iOS Safari에서도 안정적으로 발생 (beforeunload는 불안정)
     const handleUnload = () => syncNow();

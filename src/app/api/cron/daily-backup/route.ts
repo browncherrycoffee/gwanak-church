@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { put, list, del } from "@vercel/blob";
-import { verifyAuthToken } from "@/lib/auth";
+import { getAuthUser } from "@/lib/server-auth";
 import { encryptBackup } from "@/lib/backup-crypto";
 import { db } from "@/db";
-import { members } from "@/db/schema";
+import { members, appUsers, userAssignments, memberDepartments, prayers, pastoralRecords, pastoralNotes, memberRegistrants } from "@/db/schema";
 import { sql } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
@@ -17,20 +16,30 @@ export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
   const isCron = authHeader === `Bearer ${process.env.CRON_SECRET}`;
 
-  // 관리자 쿠키 인증 (수동 백업용)
-  let isCookieAuth = false;
+  // 수동 실행은 시스템 관리자만
+  let isAdminAuth = false;
   if (!isCron) {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("gwanak-auth")?.value;
-    isCookieAuth = !!token && await verifyAuthToken(token);
+    const user = await getAuthUser();
+    isAdminAuth = !!user?.isAdmin;
   }
 
-  if (!isCron && !isCookieAuth) {
+  if (!isCron && !isAdminAuth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
     const rows = await db.select().from(members).orderBy(sql`${members.createdAt} DESC`);
+    // 접근 권한 체계 테이블도 백업에 포함 (v2) — 코드 해시는 복원에 필요하므로 포함되지만
+    // 백업 전체가 AES-256-GCM 암호화되므로 평문 노출 없음
+    const accessData = {
+      appUsers: await db.select().from(appUsers),
+      userAssignments: await db.select().from(userAssignments),
+      memberDepartments: await db.select().from(memberDepartments),
+      prayers: await db.select().from(prayers),
+      pastoralRecords: await db.select().from(pastoralRecords),
+      pastoralNotes: await db.select().from(pastoralNotes),
+      memberRegistrants: await db.select().from(memberRegistrants),
+    };
 
     const now = new Date();
     const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
@@ -38,12 +47,13 @@ export async function GET(request: Request) {
     const timeStr = kst.toISOString().slice(11, 16).replace(":", ""); // HHmm
 
     const payload = {
-      version: 1,
+      version: 2,
       backupType: "daily-snapshot",
       exportedAt: now.toISOString(),
       date: dateStr,
       count: rows.length,
       members: rows,
+      access: accessData,
     };
 
     const filename = `gwanak-backup-${dateStr}-${timeStr}.json`;
