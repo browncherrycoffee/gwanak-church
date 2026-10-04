@@ -42,7 +42,7 @@ async function req(userKey, method, path, body) {
 }
 
 // ─── 0. 로그인 준비 (시도 제한 오염 방지를 위해 성공 로그인 먼저 전부 수행) ───
-const loginKeys = ["admin","pastor","elder","elderLeader","deacon","deaconLeader","staff","joLeader","deptLeader","dualLeader","nobody","scopedDeacon","staffOwn"];
+const loginKeys = ["admin","pastor","elder","elderLeader","deacon","deaconLeader","staff","joLeader","deptLeader","dualLeader","nobody","scopedDeacon","staffOwn","prayerAll"];
 for (const k of loginKeys) {
   const st = await login(k);
   if (st !== 200) { console.error(`로그인 실패: ${k} (${st}) — 중단`); process.exit(1); }
@@ -229,6 +229,22 @@ check("9", "전체", "성도 상세도 동일 API 경유 (별도 상세 API 없�
   check("심방own", "행정지원(본인심방)", "심방 작성 가능 + 본인 작성 기록만 열람(남의 기록 차단)",
     Array.isArray(before) && writeRes.status === 200 && onlyOwn,
     `작성 ${writeRes.status}, 목록 ${Array.isArray(after) ? after.length : after}건(전부 본인: ${onlyOwn})`);
+}
+
+// ─── 기도제목 전체 범위(집사+prayer_scope=all, 감사 기도제목 담당) ─────────────
+{
+  const adminPrayers = await prayerList("admin");
+  const mine = await prayerList("prayerAll");
+  // 전체 열람 (관리자와 동일 건수) + 담당 밖 성도(G: 조·부서 미지정)에게도 추가 가능
+  const addOut = await req("prayerAll", "POST", "/api/prayers", { memberId: memberIds.G, content: "감사 기도제목 테스트" });
+  // 수정·삭제 규칙은 그대로: 남이 쓴 것 수정 403, 본인 것도 삭제 403
+  const others = adminPrayers.find((x) => x.authorName === "무직조장테스트");
+  const editOther = await req("prayerAll", "PATCH", `/api/prayers/${others.id}`, { content: "수정 시도" });
+  const mineNew = (await prayerList("prayerAll")).find((x) => x.content === "감사 기도제목 테스트");
+  const delOwn = await req("prayerAll", "DELETE", `/api/prayers/${mineNew.id}`);
+  check("기도전체범위", "감사기도담당", "전체 열람 + 아무 성도에게나 추가, 남의 것 수정·본인 삭제는 거부",
+    mine.length === adminPrayers.length && addOut.status === 200 && editOther.status === 403 && delOwn.status === 403,
+    `열람 ${mine.length}/${adminPrayers.length}, 추가 ${addOut.status}, 남수정 ${editOther.status}, 삭제 ${delOwn.status}`);
 }
 
 // ─── 13. 목사: 열람은 전체, 남의 기록 수정·모든 삭제 거부 ─────────────────────

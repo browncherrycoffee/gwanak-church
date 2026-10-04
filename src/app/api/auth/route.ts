@@ -30,6 +30,7 @@ export async function GET() {
     assignments: user.assignments,
     memberId: user.memberId,
     pastoralAccess: canViewPastoral(user), // 심방 화면 표시 여부 (판단은 서버 공통 규칙)
+    prayerScope: user.prayerScope,
   });
 }
 

@@ -168,6 +168,7 @@ export default function MemberDetailPage({
   const canAddPrayerHere =
     isAdmin ||
     roleGrade === "목사" ||
+    auth?.prayerScope === "all" ||
     (auth?.assignments ?? []).some(
       (a) =>
         (a.unitType === "nanumjo" && !!member.nanumjo && a.unitName === member.nanumjo) ||

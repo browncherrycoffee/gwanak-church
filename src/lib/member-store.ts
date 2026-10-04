@@ -17,6 +17,7 @@ export interface AuthInfo {
   assignments?: { unitType: string; unitName: string }[];
   memberId?: string | null;
   pastoralAccess?: boolean;
+  prayerScope?: string;
 }
 let authInfo: AuthInfo | null = null;
 let authListeners: Array<() => void> = [];

@@ -91,6 +91,7 @@ export const ADMIN_ONLY_MEMBER_FIELDS = ["nanumjo", "position", "department"] as
 // ─── 기도제목 (지시서 4번) ──────────────────────────────────────────────────
 export function canViewPrayer(user: AuthUser, target: MemberUnits, own: MemberUnits): boolean {
   if (user.isAdmin) return true;
+  if (user.prayerScope === "all") return true; // 감사 기도제목 입력 담당자 — 전체 열람
   if (["목사", "장로", "행정지원"].includes(user.roleGrade)) return true;
   if (leadsMember(user, target)) return true; // 조장·부서장 (직분 무관)
   if (user.roleGrade === "집사" && user.memberId && sharesUnit(own, target)) return true; // 열람만
@@ -100,6 +101,7 @@ export function canViewPrayer(user: AuthUser, target: MemberUnits, own: MemberUn
 // 추가: 그 성도의 조장·부서장, 관리자, 목사. (장로·집사는 맡은 범위에서만 = leadsMember)
 export function canAddPrayer(user: AuthUser, target: MemberUnits): boolean {
   if (user.isAdmin) return true;
+  if (user.prayerScope === "all") return true; // 감사 기도제목 입력 담당자 — 전체 추가
   if (user.roleGrade === "목사") return true;
   return leadsMember(user, target);
 }

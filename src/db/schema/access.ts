@@ -26,8 +26,10 @@ export const appUsers = pgTable(
     roleGrade: varchar("role_grade", { length: 10 }).notNull().default("없음"), // 목사|장로|집사|행정지원|없음
     isAdmin: boolean("is_admin").notNull().default(false),
     status: varchar("status", { length: 10 }).notNull().default("active"), // active|disabled
-    // 심방기록 열람 범위: all(등급 규칙대로 전체) | units(담당 조·부서 성도만)
+    // 심방기록 열람 범위: all(등급 규칙대로 전체) | units(담당 조·부서 성도만) | own(본인 작성만)
     pastoralScope: varchar("pastoral_scope", { length: 10 }).notNull().default("all"),
+    // 기도제목 범위: default(등급·담당 규칙) | all(전체 열람+추가 — 감사 기도제목 입력 담당자용)
+    prayerScope: varchar("prayer_scope", { length: 10 }).notNull().default("default"),
     // 접속 코드는 원문 저장 금지 — SHA-256(pepper 포함) 해시만
     codeHash: varchar("code_hash", { length: 64 }),
     codeIssuedAt: timestamp("code_issued_at", { withTimezone: true }),
