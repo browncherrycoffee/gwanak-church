@@ -221,7 +221,7 @@ function scheduleFullSync() {
         notifySyncError(false);
         try {
           const data = await res.json() as { updatedAt?: string };
-          if (data?.updatedAt) lastKnownServerUpdatedAt = data.updatedAt;
+          if (data?.updatedAt) lastKnownServerUpdatedAt = ""; // 다음 폴링이 새 version으로 갱신
         } catch { /* ignore */ }
       } else if (res.status === 401) {
         notifySyncError("auth");
@@ -324,12 +324,14 @@ export async function pollForChanges(): Promise<void> {
   try {
     const res = await fetch("/api/members/version", { cache: "no-store" });
     if (!res.ok) return;
-    const data = await res.json() as { updatedAt?: string } | null;
+    const data = await res.json() as { updatedAt?: string; version?: string } | null;
     if (!data?.updatedAt) return;
 
-    if (data.updatedAt === lastKnownServerUpdatedAt) return;
+    // version(시각+행수)으로 비교 — 행 수가 포함되어야 삭제도 감지된다
+    const current = data.version ?? data.updatedAt;
+    if (current === lastKnownServerUpdatedAt) return;
 
-    lastKnownServerUpdatedAt = data.updatedAt;
+    lastKnownServerUpdatedAt = current;
     fetchInProgress = false;
     lastFetchAt = 0;
     await initFromServer(true);

@@ -42,6 +42,7 @@ import {
   getAuthInfo,
   loadAuthInfo,
   subscribeAuth,
+  subscribeServerUpdate,
   getScope,
 } from "@/lib/member-store";
 import {
@@ -136,6 +137,12 @@ export default function MemberDetailPage({
 
   useEffect(() => {
     if (canPastoral) loadPastoral();
+  }, [canPastoral, loadPastoral]);
+
+  // 실시간 동기화: 다른 기기의 심방기록 변경도 2초 폴링 감지로 자동 반영
+  useEffect(() => {
+    if (!canPastoral) return;
+    return subscribeServerUpdate(() => loadPastoral());
   }, [canPastoral, loadPastoral]);
 
   // subscribe to store changes

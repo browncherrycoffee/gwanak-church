@@ -13,7 +13,7 @@ import {
   X,
   Lock,
 } from "@phosphor-icons/react";
-import { getMembers, subscribe, getAuthInfo, loadAuthInfo, subscribeAuth } from "@/lib/member-store";
+import { getMembers, subscribe, getAuthInfo, loadAuthInfo, subscribeAuth, subscribeServerUpdate } from "@/lib/member-store";
 
 // ─── 타입 정의 ─────────────────────────────────────────────────────────────
 
@@ -544,6 +544,12 @@ export default function PastoralListPage() {
 
   useEffect(() => {
     if (canView) fetchRecords();
+  }, [canView, fetchRecords]);
+
+  // 실시간 동기화: 다른 기기의 변경(2초 버전 폴링 감지) 시 자동 재조회
+  useEffect(() => {
+    if (!canView) return;
+    return subscribeServerUpdate(() => fetchRecords());
   }, [canView, fetchRecords]);
 
   // 멤버 이름 조회 헬퍼
