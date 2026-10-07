@@ -81,7 +81,7 @@ function canSeeFull(auth: AuthInfo | null): boolean {
 
 function canAddForMember(auth: AuthInfo | null, member: Member): boolean {
   if (!auth) return false;
-  if (auth.isAdmin || auth.roleGrade === "목사" || auth.prayerScope === "all") return true;
+  if (auth.isAdmin || auth.roleGrade === "목사" || auth.roleGrade === "행정지원" || auth.prayerScope === "all") return true;
   const assignments = auth.assignments ?? [];
   if (member.nanumjo && assignments.some((a) => a.unitType === "nanumjo" && a.unitName === member.nanumjo)) return true;
   for (const dept of (member.departments ?? [])) {

@@ -193,12 +193,12 @@ check("9", "전체", "성도 상세도 동일 API 경유 (별도 상세 API 없�
   const past = await req("staff", "GET", "/api/pastoral");
   const noLeak = past.status === 403 && !JSON.stringify(past.json ?? {}).match(/record|count|note/i);
   const addPast = await req("staff", "POST", "/api/pastoral", { memberId: memberIds.A, sharedContent: "불법" });
-  const addPrayer = await req("staff", "POST", "/api/prayers", { memberId: memberIds.A, content: "불법" });
-  check("11(행정지원)", "행정지원", "성도·기도 전체 열람(관리자와 동일 범위) + 심방 열람·작성 차단, 건수 비노출",
+  const addPrayer = await req("staff", "POST", "/api/prayers", { memberId: memberIds.A, content: "행정 기도 작성 테스트" });
+  check("11(행정지원)", "행정지원", "성도·기도 전체 열람 + 기도 작성 허용(2026-10-07), 심방은 차단·건수 비노출",
     mem.json?.members?.length === adminMem.json?.members?.length &&
     prayers.length === adminPrayers.length && prayers.length >= 8 &&
-    noLeak && addPast.status === 403 && addPrayer.status === 403,
-    `성도 ${mem.json?.members?.length}/${adminMem.json?.members?.length}, 기도 ${prayers.length}/${adminPrayers.length}, 심방 ${past.status}`);
+    noLeak && addPast.status === 403 && addPrayer.status === 200,
+    `성도 ${mem.json?.members?.length}/${adminMem.json?.members?.length}, 기도 ${prayers.length}/${adminPrayers.length}, 심방 ${past.status}, 기도작성 ${addPrayer.status}`);
 }
 
 // ─── 심방 범위 한정(집사 등급, 청년부(직장인) 담당): 담당 부서 성도 기록만 ───────
@@ -252,10 +252,10 @@ check("9", "전체", "성도 상세도 동일 API 경유 (별도 상세 API 없�
   const editOther = await req("pastor", "PATCH", `/api/pastoral/${recordIds.rec2}`, { sharedContent: "목사 수정 시도" });
   const delRec = await req("pastor", "DELETE", `/api/pastoral/${recordIds.rec1}`);
   const anyPrayer = (await prayerList("admin")).find((p) => p.authorName !== "목사테스트");
-  const editPrayer = await req("pastor", "PATCH", `/api/prayers/${anyPrayer.id}`, { content: "목사 수정 시도" });
-  check("13·21", "목사", "남이 쓴 심방·기도 수정 거부 + 삭제 거부",
-    editOther.status === 403 && delRec.status === 403 && editPrayer.status === 403,
-    `${editOther.status}/${delRec.status}/${editPrayer.status}`);
+  const editPrayer = await req("pastor", "PATCH", `/api/prayers/${anyPrayer.id}`, { content: anyPrayer.content + " (목사 수정)" });
+  check("13·21", "목사", "남이 쓴 심방 수정·삭제 거부 유지 + 기도제목 수정은 허용(2026-10-07)",
+    editOther.status === 403 && delRec.status === 403 && editPrayer.status === 200,
+    `심방수정 ${editOther.status}, 삭제 ${delRec.status}, 기도수정 ${editPrayer.status}`);
 }
 
 // ─── 16·20. 성도 정보 수정으로 권한 확대 불가 + 기본정보 수정·삭제 규칙 ────────
@@ -294,9 +294,11 @@ check("9", "전체", "성도 상세도 동일 API 경유 (별도 상세 API 없�
   });
   const afterPastor = await req("admin", "GET", "/api/members");
   const hMember = afterPastor.json.members.find((m) => m.id === memberIds.H);
-  check("목사수정", "목사", "기존 성도 기본정보 수정 200 + 소속 변경은 무시",
-    editByPastor.status === 200 && hMember.phone === "010-3333-4444" && hMember.nanumjo === "인내조",
-    `수정 ${editByPastor.status}, 소속=${hMember.nanumjo}(인내조 유지)`);
+  check("목사수정", "목사", "기본정보 + 소속 변경까지 반영(2026-10-07)",
+    editByPastor.status === 200 && hMember.phone === "010-3333-4444" && hMember.nanumjo === "희락조",
+    `수정 ${editByPastor.status}, 소속=${hMember.nanumjo}`);
+  // 되돌림 (뒤 테스트들이 인내조 기준)
+  await req("admin", "POST", `/api/members/${memberIds.H}`, { member: { id: memberIds.H, name: "아성도", nanumjo: "인내조" } });
 
   // 삭제: 등록자 본인도 403, 관리자만
   const delByDeacon = await req("deacon", "DELETE", `/api/members/${memberIds.C}`);

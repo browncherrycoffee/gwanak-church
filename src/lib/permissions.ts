@@ -93,7 +93,8 @@ export function canDeleteMember(user: AuthUser): boolean {
 // 소속(나눔조·부서)·직분 변경: 관리자 + 행정지원(2026-10-07 승인, 행정 담당).
 // 공동의회회원·담당(조장/부서장) 지정·삭제는 여전히 관리자만.
 export function canEditMemberOrgFields(user: AuthUser): boolean {
-  return user.isAdmin || user.roleGrade === "행정지원";
+  // 관리자 + 행정지원 + 담임목사 (2026-10-07 승인)
+  return user.isAdmin || user.roleGrade === "행정지원" || user.roleGrade === "목사";
 }
 
 // ─── 기도제목 (지시서 4번) ──────────────────────────────────────────────────
@@ -111,6 +112,7 @@ export function canAddPrayer(user: AuthUser, target: MemberUnits): boolean {
   if (user.isAdmin) return true;
   if (user.prayerScope === "all") return true; // 감사 기도제목 입력 담당자 — 전체 추가
   if (user.roleGrade === "목사") return true;
+  if (user.roleGrade === "행정지원") return true; // 담임목사 행정 보좌 (2026-10-07 승인)
   return leadsMember(user, target);
 }
 
@@ -122,6 +124,8 @@ export function canEditPrayer(
   own: MemberUnits,
 ): boolean {
   if (user.isAdmin) return true;
+  // 담임목사·행정지원: 작성자와 무관하게 수정 가능 (2026-10-07 사용자 승인 — 원 규칙 완화)
+  if (user.roleGrade === "목사" || user.roleGrade === "행정지원") return true;
   if (!authorUserId || authorUserId !== user.id) return false;
   return canViewPrayer(user, target, own); // 열람 권한이 없어졌으면 수정도 불가
 }

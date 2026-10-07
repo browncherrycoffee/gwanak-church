@@ -66,7 +66,11 @@ export async function GET() {
           lastEditorName: p.lastEditorUserId ? (nameMap.get(p.lastEditorUserId) ?? null) : null,
           createdAt: p.createdAt.toISOString(),
           updatedAt: p.updatedAt.toISOString(),
-          canEdit: user.isAdmin || (!!p.authorUserId && p.authorUserId === user.id),
+          canEdit:
+            user.isAdmin ||
+            user.roleGrade === "목사" ||
+            user.roleGrade === "행정지원" ||
+            (!!p.authorUserId && p.authorUserId === user.id),
           canDelete: user.isAdmin,
         })),
       },

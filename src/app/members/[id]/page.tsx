@@ -175,6 +175,7 @@ export default function MemberDetailPage({
   const canAddPrayerHere =
     isAdmin ||
     roleGrade === "목사" ||
+    roleGrade === "행정지원" ||
     auth?.prayerScope === "all" ||
     (auth?.assignments ?? []).some(
       (a) =>
