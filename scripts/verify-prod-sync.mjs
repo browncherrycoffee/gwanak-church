@@ -1,12 +1,14 @@
 // 운영 환경 동기화 스모크 테스트 — 기기 2대 시나리오 재현.
 // 세션A(기기1)가 작성 → 세션B(기기2)의 2초 폴링 신호가 감지하는지 확인.
 // 테스트로 넣은 기도제목은 즉시 삭제해 원상복구한다. (관리자 코드 필요)
-import { readFileSync } from "node:fs";
-
 const BASE = "https://gwanak-church.vercel.app";
-const sheet = readFileSync("관악교회 교적부 백업 데이터/접속코드-발급-2026-10-02.txt", "utf8");
-const code = sheet.match(/^이명건[^\n]*\n  접속 코드: (\d{6})/m)?.[1];
-if (!code) { console.error("관리자 코드를 찾을 수 없음"); process.exit(1); }
+// 코드 시트는 보안상 삭제됨 — 관리자 코드를 환경변수로 받는다
+// 사용법: GWANAK_ADMIN_CODE=본인6자리 node scripts/verify-prod-sync.mjs
+const code = process.env.GWANAK_ADMIN_CODE;
+if (!code || !/^\d{6}$/.test(code)) {
+  console.error("GWANAK_ADMIN_CODE 환경변수에 관리자 접속 코드(6자리)를 넣어 실행하세요.");
+  process.exit(1);
+}
 
 async function login() {
   const r = await fetch(`${BASE}/api/auth`, {
