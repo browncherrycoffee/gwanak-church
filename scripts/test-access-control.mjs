@@ -288,6 +288,16 @@ check("9", "전체", "성도 상세도 동일 API 경유 (별도 상세 API 없�
     eMember.nanumjo === "사랑조" && eMember.position === "집사" && staffDel.status === 403,
     `조장 ${addByJoLeader.status}, 행정 ${addByStaff.status}/${editLegacyByStaff.status}, 소속=${eMember.nanumjo}, 직분=${eMember.position}, 삭제 ${staffDel.status}`);
 
+  // 수정 버튼 플래그(canEdit): 집사는 본인이 등록한 교인만 true
+  const deaconView = await req("deacon", "GET", "/api/members");
+  const cFlag = deaconView.json.members.find((m) => m.id === memberIds.C)?.canEdit;
+  const aFlag = deaconView.json.members.find((m) => m.id === memberIds.A)?.canEdit;
+  const staffView = await req("staff", "GET", "/api/members");
+  const staffAll = staffView.json.members.every((m) => m.canEdit === true);
+  check("수정버튼플래그", "집사/행정지원", "집사: 등록한 교인만 canEdit, 행정지원: 전체 canEdit",
+    cFlag === true && aFlag === false && staffAll,
+    `집사 C=${cFlag}/A=${aFlag}, 행정 전체=${staffAll}`);
+
   // 목사: 기존 성도 기본정보 수정 허용, 소속·직분 변경은 무시됨
   const editByPastor = await req("pastor", "POST", `/api/members/${memberIds.H}`, {
     member: { id: memberIds.H, name: "아성도", phone: "010-3333-4444", nanumjo: "희락조" },

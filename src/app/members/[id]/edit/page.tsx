@@ -31,6 +31,23 @@ export default function EditMemberPage({
     );
   }
 
+  // 수정 권한 없는 사용자는 주소 직접 입력으로도 폼을 열 수 없음 (서버도 403으로 거부)
+  if (member.canEdit === false) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-4 text-center">
+        <div>
+          <p className="font-medium mb-2">이 교인을 수정할 권한이 없습니다</p>
+          <p className="text-sm text-muted-foreground mb-4">
+            본인이 등록한 교인만 수정할 수 있습니다. 변경이 필요하면 관리자에게 요청하세요.
+          </p>
+          <Button asChild variant="outline">
+            <Link href={`/members/${id}`}>돌아가기</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   const handleSubmit = (data: MemberFormData) => {
     updateMember(id, data);
     router.push(`/members/${id}`);

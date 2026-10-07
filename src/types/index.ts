@@ -38,6 +38,8 @@ export interface Member {
   notes: string | null;
   photoUrl: string | null;
   memberStatus: string;
+  // 이 사용자가 이 성도를 수정할 수 있는가 — 서버가 계산해 내려줌 (버튼 표시용)
+  canEdit?: boolean;
   // 공동의회회원 여부 (구버전 백업에는 없을 수 있어 optional)
   congregationMember?: boolean;
   prayerRequests: PrayerRequest[];

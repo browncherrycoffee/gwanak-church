@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { inArray, sql } from "drizzle-orm";
+import { inArray, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { members, memberDepartments, memberRegistrants } from "@/db/schema";
+import type { AuthUser } from "@/lib/server-auth";
 import { getAuthUser } from "@/lib/server-auth";
 import { memberViewScope, canAddMember, canEditMemberOrgFields } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
@@ -9,12 +10,19 @@ import type { Member, MemberNameOnly } from "@/types";
 
 export const dynamic = "force-dynamic";
 
+// 모든 교인을 수정할 수 있는 사용자 (permissions.canEditMember와 동일 규칙)
+function canEditAnyMember(user: AuthUser): boolean {
+  return user.isAdmin || user.roleGrade === "행정지원" || user.roleGrade === "목사";
+}
+
 // 기도제목·심방기록은 이 API로 내려가지 않는다 (별도 권한 API: /api/prayers, /api/pastoral)
 function rowToMember(
   row: typeof members.$inferSelect,
   departments: string[],
+  canEdit: boolean,
 ): Member {
   return {
+    canEdit,
     id: row.id,
     name: row.name,
     phone: row.phone ?? null,
@@ -95,7 +103,19 @@ export async function GET() {
     const deptMap = await loadAllDepartments(rows.map((r) => r.id));
 
     if (scope === "full") {
-      const result = rows.map((r) => rowToMember(r, deptMap.get(r.id) ?? []));
+      // 수정 버튼 표시용: 누가 등록한 교인인지 → canEdit 계산
+      const canEditAll = canEditAnyMember(user);
+      const myRegistered = new Set<string>();
+      if (!canEditAll) {
+        const regRows = await db
+          .select({ memberId: memberRegistrants.memberId })
+          .from(memberRegistrants)
+          .where(eq(memberRegistrants.createdByUserId, user.id));
+        for (const r of regRows) myRegistered.add(r.memberId);
+      }
+      const result = rows.map((r) =>
+        rowToMember(r, deptMap.get(r.id) ?? [], canEditAll || myRegistered.has(r.id)),
+      );
       return NextResponse.json(
         { members: result, count: result.length, scope, exportedAt: new Date().toISOString() },
         { headers: { "Cache-Control": "no-store" } },

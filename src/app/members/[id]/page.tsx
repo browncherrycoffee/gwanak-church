@@ -350,7 +350,7 @@ export default function MemberDetailPage({
               <Printer weight="light" className="h-4 w-4 sm:mr-1.5" />
               <span className="hidden sm:inline">인쇄</span>
             </Button>
-            {scope === "full" && (
+            {scope === "full" && member.canEdit === true && (
               <Button asChild variant="outline" size="sm" className="h-9 px-3">
                 <Link href={`/members/${id}/edit`}>
                   <PencilSimple weight="light" className="h-4 w-4 sm:mr-1.5" />
