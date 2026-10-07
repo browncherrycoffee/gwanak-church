@@ -75,6 +75,10 @@ export function ServerSync() {
 
   const errorMessage = syncError === "auth"
     ? "저장 실패 — 다시 로그인 필요"
+    : syncError === "forbidden-create"
+    ? "등록 권한이 없어 저장되지 않았습니다 (입력 내용 취소됨)"
+    : syncError === "forbidden-edit"
+    ? "수정 권한이 없어 저장되지 않았습니다 (원래 내용으로 복원됨)"
     : syncError
     ? `저장 실패 [${syncError}]`
     : null;

@@ -22,6 +22,7 @@ export default function HomePage() {
     loadAuthInfo();
   }, []);
   const isAdmin = auth?.isAdmin === true;
+  const canAddMember = auth ? (isAdmin || ["목사", "장로", "집사"].includes(auth.roleGrade ?? "")) : false;
 
   const handleLogout = async () => {
     await fetch("/api/auth", { method: "DELETE" });
@@ -277,27 +278,33 @@ export default function HomePage() {
           <Users weight="light" className="h-4 w-4" />
           전체 교적
         </Link>
-        <Link
-          href="/members/new"
-          className="flex items-center gap-1.5 hover:text-primary transition-colors"
-        >
-          <UserPlus weight="light" className="h-4 w-4" />
-          교인 등록
-        </Link>
-        <Link
-          href="/members/import"
-          className="flex items-center gap-1.5 hover:text-primary transition-colors"
-        >
-          <UploadSimple weight="light" className="h-4 w-4" />
-          일괄 가져오기
-        </Link>
-        <Link
-          href="/members/backup"
-          className="flex items-center gap-1.5 hover:text-primary transition-colors"
-        >
-          <Database weight="light" className="h-4 w-4" />
-          백업 / 복원
-        </Link>
+        {canAddMember && (
+          <Link
+            href="/members/new"
+            className="flex items-center gap-1.5 hover:text-primary transition-colors"
+          >
+            <UserPlus weight="light" className="h-4 w-4" />
+            교인 등록
+          </Link>
+        )}
+        {isAdmin && (
+          <Link
+            href="/members/import"
+            className="flex items-center gap-1.5 hover:text-primary transition-colors"
+          >
+            <UploadSimple weight="light" className="h-4 w-4" />
+            일괄 가져오기
+          </Link>
+        )}
+        {isAdmin && (
+          <Link
+            href="/members/backup"
+            className="flex items-center gap-1.5 hover:text-primary transition-colors"
+          >
+            <Database weight="light" className="h-4 w-4" />
+            백업 / 복원
+          </Link>
+        )}
         <Link
           href="/members/stats"
           className="flex items-center gap-1.5 hover:text-primary transition-colors"

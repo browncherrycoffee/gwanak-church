@@ -274,6 +274,13 @@ check("9", "전체", "성도 상세도 동일 API 경유 (별도 상세 API 없�
   const editOther = await req("deacon", "POST", `/api/members/${memberIds.A}`, {
     member: { id: memberIds.A, name: "가성도", phone: "010-9999-9999" },
   });
+  // 등록 권한 없는 등급(조장·행정지원)의 성도 추가는 403
+  const addByJoLeader = await req("joLeader", "POST", "/api/members", { member: { name: "불법등록" } });
+  const addByStaff = await req("staff", "POST", "/api/members", { member: { name: "불법등록2" } });
+  check("성도등록권한", "조장/행정지원", "등록 권한 없는 등급의 성도 추가 403",
+    addByJoLeader.status === 403 && addByStaff.status === 403,
+    `${addByJoLeader.status}/${addByStaff.status}`);
+
   // 삭제: 등록자 본인도 403, 관리자만
   const delByDeacon = await req("deacon", "DELETE", `/api/members/${memberIds.C}`);
   const delByPastor = await req("pastor", "DELETE", `/api/members/${memberIds.G}`);

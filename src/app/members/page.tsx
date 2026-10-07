@@ -17,8 +17,9 @@ import { Badge } from "@/components/ui/badge";
 import { MemberCard } from "@/components/members/member-card";
 import { exportMembersCsv } from "@/lib/export";
 import { searchMembers } from "@/lib/search";
-import { getMembers, subscribe } from "@/lib/member-store";
+import { getMembers, subscribe, getAuthInfo, loadAuthInfo, subscribeAuth } from "@/lib/member-store";
 import { POSITIONS, DEPARTMENTS, POSITION_ORDER } from "@/lib/constants";
+import { useEffect } from "react";
 import type { Member } from "@/types";
 
 type SortKey = "name" | "position" | "registrationDate" | "department";
@@ -63,6 +64,9 @@ export default function MembersListPage() {
   const [view, setView] = useState<"all" | "congregation">("all");
 
   const members = useSyncExternalStore(subscribe, getMembers, getMembers);
+  const auth = useSyncExternalStore(subscribeAuth, getAuthInfo, () => null);
+  useEffect(() => { loadAuthInfo(); }, []);
+  const canAddMember = !!auth && (auth.isAdmin === true || ["목사", "장로", "집사"].includes(auth.roleGrade ?? ""));
 
   // 제적 교인은 별도 페이지에서 관리 — 메인 목록에서 제외
   const activeMembers = useMemo(
@@ -153,12 +157,14 @@ export default function MembersListPage() {
             >
               <DownloadSimple weight="light" className="h-5 w-5" />
             </Button>
-            <Button asChild size="sm" className="h-9 px-3">
-              <Link href="/members/new">
-                <UserPlus weight="light" className="h-4 w-4 sm:mr-1.5" />
-                <span className="hidden sm:inline">등록</span>
-              </Link>
-            </Button>
+            {canAddMember && (
+              <Button asChild size="sm" className="h-9 px-3">
+                <Link href="/members/new">
+                  <UserPlus weight="light" className="h-4 w-4 sm:mr-1.5" />
+                  <span className="hidden sm:inline">등록</span>
+                </Link>
+              </Button>
+            )}
           </div>
         </div>
         {/* 모바일: 검색창 별도 행 */}

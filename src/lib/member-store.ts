@@ -98,6 +98,8 @@ function scheduleRetry(memberId: string) {
 }
 
 // 신규 성도 생성 — POST /api/members (서버가 등록자 기록, 권한 검증)
+// 서버가 거부하면(권한 없음 등) 화면의 낙관적 데이터를 즉시 되돌린다.
+// 거부된 데이터가 화면·검색에 남아 "저장된 것처럼" 보이면 안 된다.
 function sendCreate(member: Member) {
   if (typeof window === "undefined") return;
   notifySyncStatus(true);
@@ -108,11 +110,24 @@ function sendCreate(member: Member) {
     body: JSON.stringify({ member }),
   })
     .then((res) => {
-      if (res.ok) notifySyncError(false);
-      else notifySyncError(res.status === 401 ? "auth" : `server-${res.status}`);
+      if (res.ok) {
+        notifySyncError(false);
+        return;
+      }
+      // 롤백: 거부된 신규 성도를 화면에서 제거
+      members = members.filter((m) => m.id !== member.id);
+      for (const listener of listeners) listener();
+      notifySyncError(res.status === 401 ? "auth" : res.status === 403 ? "forbidden-create" : `server-${res.status}`);
     })
     .catch((err) => notifySyncError(`fetch-${String(err).slice(0, 40)}`))
     .finally(() => { if (!isDirty()) notifySyncStatus(false); });
+}
+
+// 화면용: 성도 등록 권한 (서버 canAddMember와 동일 규칙)
+export function canAddMemberClient(): boolean {
+  if (!authInfo) return false;
+  if (authInfo.isAdmin) return true;
+  return ["목사", "장로", "집사"].includes(authInfo.roleGrade ?? "");
 }
 
 // ─── 개별 교인 POST (~5KB, 500ms) ──────────────────────────────────────────
@@ -150,6 +165,15 @@ function schedulePatch(memberId: string) {
         retryQueue.delete(memberId);
       } else if (res.status === 401) {
         notifySyncError("auth");
+      } else if (res.status === 403) {
+        // 권한 거부 — 낙관적 수정을 서버 원본으로 되돌린다
+        // (거부된 수정이 화면에 남아 "저장된 것처럼" 보이면 안 됨)
+        notifySyncError("forbidden-edit");
+        pendingPatches.delete(memberId);
+        setTimeout(() => {
+          lastFetchAt = 0;
+          initFromServer(true);
+        }, 100);
       } else {
         const body = await res.text().catch(() => "");
         console.error(`[sync] POST ${memberId} → ${res.status}`, body);
@@ -596,7 +620,14 @@ export function deleteMember(id: string): boolean {
       .then((res) => {
         if (res.ok) notifySyncError(false);
         else if (res.status === 401) notifySyncError("auth");
-        else notifySyncError(`del-${res.status}`);
+        else {
+          notifySyncError(res.status === 403 ? "forbidden-edit" : `del-${res.status}`);
+          // 거부된 삭제 — 서버 원본으로 복원
+          setTimeout(() => {
+            lastFetchAt = 0;
+            initFromServer(true);
+          }, 100);
+        }
       })
       .catch((err) => {
         const msg = err instanceof Error ? err.message : String(err);

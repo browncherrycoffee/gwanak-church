@@ -5,16 +5,36 @@ import Link from "next/link";
 import { Cross, ArrowLeft } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { MemberForm } from "@/components/members/member-form";
-import { addMember } from "@/lib/member-store";
+import { addMember, getAuthInfo, loadAuthInfo, subscribeAuth, canAddMemberClient } from "@/lib/member-store";
+import { useEffect, useSyncExternalStore } from "react";
 import type { MemberFormData } from "@/types";
 
 export default function NewMemberPage() {
   const router = useRouter();
+  const auth = useSyncExternalStore(subscribeAuth, getAuthInfo, () => null);
+  useEffect(() => { loadAuthInfo(); }, []);
 
   const handleSubmit = (data: MemberFormData) => {
     const newMember = addMember(data);
     router.push(`/members/${newMember.id}`);
   };
+
+  // 등록 권한(관리자·목사·장로·집사) 없는 사용자는 폼 자체를 열 수 없음
+  if (auth && !canAddMemberClient()) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-4 text-center">
+        <div>
+          <p className="font-medium mb-2">교인 등록 권한이 없습니다</p>
+          <p className="text-sm text-muted-foreground mb-4">
+            교인 등록은 관리자·목사님·장로님·집사님만 할 수 있습니다.
+          </p>
+          <Button asChild variant="outline">
+            <Link href="/members">목록으로</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">
