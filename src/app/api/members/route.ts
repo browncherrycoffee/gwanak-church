@@ -3,7 +3,7 @@ import { inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { members, memberDepartments, memberRegistrants } from "@/db/schema";
 import { getAuthUser } from "@/lib/server-auth";
-import { memberViewScope, canAddMember } from "@/lib/permissions";
+import { memberViewScope, canAddMember, canEditMemberOrgFields } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
 import type { Member, MemberNameOnly } from "@/types";
 
@@ -145,8 +145,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "이름이 필요합니다." }, { status: 400 });
   }
 
-  // 소속·직분은 관리자만 지정 가능 — 비관리자 요청에서는 무시
+  // 소속·직분은 관리자+행정지원만 지정 가능 — 그 외 요청에서는 무시
   const isAdmin = user.isAdmin;
+  const canOrg = canEditMemberOrgFields(user);
   try {
     const inserted = await db
       .insert(members)
@@ -162,10 +163,10 @@ export async function POST(request: Request) {
         detailAddress: member.detailAddress ?? null,
         birthDate: member.birthDate ?? null,
         gender: member.gender ?? null,
-        position: isAdmin ? (member.position ?? "성도") : "성도",
+        position: canOrg ? (member.position ?? "성도") : "성도",
         department: null, // 단일 부서 필드는 더 이상 쓰지 않음 (member_departments 사용)
         district: member.district ?? null,
-        nanumjo: isAdmin ? (member.nanumjo ?? null) : null,
+        nanumjo: canOrg ? (member.nanumjo ?? null) : null,
         familyMembers: Array.isArray(member.familyMembers) ? member.familyMembers : [],
         baptismDate: member.baptismDate ?? null,
         baptismType: member.baptismType ?? null,
@@ -183,7 +184,7 @@ export async function POST(request: Request) {
     const newId = inserted[0]?.id;
     if (newId) {
       await db.insert(memberRegistrants).values({ memberId: newId, createdByUserId: user.id });
-      if (isAdmin && Array.isArray(member.departments) && member.departments.length > 0) {
+      if (canOrg && Array.isArray(member.departments) && member.departments.length > 0) {
         await db.insert(memberDepartments).values(
           member.departments.map((d) => ({ memberId: newId, departmentName: String(d) })),
         );

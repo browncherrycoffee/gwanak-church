@@ -89,8 +89,11 @@ export function canDeleteMember(user: AuthUser): boolean {
   return user.isAdmin;
 }
 
-// 소속(나눔조·부서)·직분·담당 변경: 관리자만 — 수정 API가 필드 단위로 강제
-export const ADMIN_ONLY_MEMBER_FIELDS = ["nanumjo", "position", "department"] as const;
+// 소속(나눔조·부서)·직분 변경: 관리자 + 행정지원(2026-10-07 승인, 행정 담당).
+// 공동의회회원·담당(조장/부서장) 지정·삭제는 여전히 관리자만.
+export function canEditMemberOrgFields(user: AuthUser): boolean {
+  return user.isAdmin || user.roleGrade === "행정지원";
+}
 
 // ─── 기도제목 (지시서 4번) ──────────────────────────────────────────────────
 export function canViewPrayer(user: AuthUser, target: MemberUnits, own: MemberUnits): boolean {

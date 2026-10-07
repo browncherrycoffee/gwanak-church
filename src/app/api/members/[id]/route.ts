@@ -6,6 +6,7 @@ import { getAuthUser } from "@/lib/server-auth";
 import {
   canEditMember,
   canDeleteMember,
+  canEditMemberOrgFields,
   getRegistrant,
   memberViewScope,
 } from "@/lib/permissions";
@@ -55,6 +56,7 @@ async function handleUpdate(request: Request, params: Promise<{ id: string }>) {
   if (!member) return NextResponse.json({ error: "데이터가 없습니다." }, { status: 400 });
 
   const isAdmin = user.isAdmin;
+  const canOrg = canEditMemberOrgFields(user); // 소속·직분: 관리자+행정지원
   try {
     await db
       .update(members)
@@ -78,9 +80,9 @@ async function handleUpdate(request: Request, params: Promise<{ id: string }>) {
         notes: member.notes ?? null,
         photoUrl: member.photoUrl ?? null,
         memberStatus: member.memberStatus ?? existing.memberStatus,
-        // ↓ 권한에 영향을 주는 필드 — 관리자만. 비관리자 값은 DB 기존 값 유지.
-        position: isAdmin ? (member.position ?? existing.position) : existing.position,
-        nanumjo: isAdmin ? (member.nanumjo ?? null) : existing.nanumjo,
+        // ↓ 소속·직분: 관리자+행정지원만. 공동의회회원은 관리자만.
+        position: canOrg ? (member.position ?? existing.position) : existing.position,
+        nanumjo: canOrg ? (member.nanumjo ?? null) : existing.nanumjo,
         congregationMember: isAdmin
           ? (member.congregationMember ?? existing.congregationMember)
           : existing.congregationMember,
@@ -88,8 +90,8 @@ async function handleUpdate(request: Request, params: Promise<{ id: string }>) {
       })
       .where(eq(members.id, id));
 
-    // 다중 부서 소속 — 관리자만
-    if (isAdmin && Array.isArray(member.departments)) {
+    // 다중 부서 소속 — 관리자+행정지원
+    if (canOrg && Array.isArray(member.departments)) {
       await db.delete(memberDepartments).where(eq(memberDepartments.memberId, id));
       if (member.departments.length > 0) {
         await db.insert(memberDepartments).values(

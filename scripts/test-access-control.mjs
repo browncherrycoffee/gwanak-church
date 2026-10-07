@@ -278,11 +278,15 @@ check("9", "전체", "성도 상세도 동일 API 경유 (별도 상세 API 없�
   const addByJoLeader = await req("joLeader", "POST", "/api/members", { member: { name: "불법등록" } });
   const addByStaff = await req("staff", "POST", "/api/members", { member: { name: "행정등록테스트" } });
   const editLegacyByStaff = await req("staff", "POST", `/api/members/${memberIds.E}`, {
-    member: { id: memberIds.E, name: "마성도", phone: "010-7777-8888" },
+    member: { id: memberIds.E, name: "마성도", phone: "010-7777-8888", nanumjo: "사랑조", position: "집사" },
   });
-  check("성도등록권한", "조장/행정지원", "조장 등록 403 + 행정지원 등록·기존수정 200",
-    addByJoLeader.status === 403 && addByStaff.status === 200 && editLegacyByStaff.status === 200,
-    `조장 ${addByJoLeader.status}, 행정등록 ${addByStaff.status}, 행정수정 ${editLegacyByStaff.status}`);
+  const afterStaff = await req("admin", "GET", "/api/members");
+  const eMember = afterStaff.json.members.find((m) => m.id === memberIds.E);
+  const staffDel = await req("staff", "DELETE", `/api/members/${memberIds.E}`);
+  check("성도등록권한", "조장/행정지원", "조장 등록 403 + 행정지원 등록·수정·소속·직분 변경 200, 삭제 403",
+    addByJoLeader.status === 403 && addByStaff.status === 200 && editLegacyByStaff.status === 200 &&
+    eMember.nanumjo === "사랑조" && eMember.position === "집사" && staffDel.status === 403,
+    `조장 ${addByJoLeader.status}, 행정 ${addByStaff.status}/${editLegacyByStaff.status}, 소속=${eMember.nanumjo}, 직분=${eMember.position}, 삭제 ${staffDel.status}`);
 
   // 삭제: 등록자 본인도 403, 관리자만
   const delByDeacon = await req("deacon", "DELETE", `/api/members/${memberIds.C}`);

@@ -740,7 +740,7 @@ export default function PrayerListPage() {
                         {group.members.length}명
                       </span>
                       {/* 조원 추가 — 나눔조 보기 + 관리자만 */}
-                      {view === "group" && !group.isUnassigned && auth?.isAdmin && (
+                      {view === "group" && !group.isUnassigned && (auth?.isAdmin || auth?.roleGrade === "행정지원") && (
                         <button
                           type="button"
                           onClick={() =>
@@ -764,7 +764,7 @@ export default function PrayerListPage() {
                     </div>
 
                     {/* 조원 추가 패널 */}
-                    {view === "group" && addingGroup === group.name && auth?.isAdmin && (
+                    {view === "group" && addingGroup === group.name && (auth?.isAdmin || auth?.roleGrade === "행정지원") && (
                       <div className="no-print border-b bg-background/70 px-4 py-3">
                         <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
                           {group.name}에 추가할 교인 선택 (현재 소속조에서 이동됩니다)
