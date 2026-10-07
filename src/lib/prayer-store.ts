@@ -1,5 +1,7 @@
 "use client";
 
+import { subscribeServerUpdate } from "./member-store";
+
 // 기도제목 저장소 — 새 권한 API(/api/prayers) 기반.
 // 서버가 내 권한 범위의 기도제목만 내려주며, 추가·수정·삭제도 서버가 다시 검증한다.
 
@@ -38,6 +40,14 @@ export function getPrayersByMember(memberId: string): PrayerItem[] {
 }
 
 let fetchInProgress = false;
+
+// 실시간 동기화: 다른 기기의 변경(2초 버전 폴링이 감지)이 오면 기도제목도 함께 새로 받는다.
+// (/api/members/version 이 기도제목·심방 변경 시각도 포함하므로 기도만 바뀌어도 감지됨)
+if (typeof window !== "undefined") {
+  subscribeServerUpdate(() => {
+    loadPrayers(true);
+  });
+}
 
 export async function loadPrayers(force = false): Promise<void> {
   if (typeof window === "undefined") return;
