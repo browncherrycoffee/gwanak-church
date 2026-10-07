@@ -70,12 +70,16 @@ export function memberViewScope(user: AuthUser): MemberViewScope {
 }
 
 export function canAddMember(user: AuthUser): boolean {
-  return user.isAdmin || ["목사", "장로", "집사"].includes(user.roleGrade);
+  // 행정지원: 담임목사 행정 보좌 역할로 성도 등록·수정 허용 (2026-10-07 사용자 승인)
+  return user.isAdmin || ["목사", "장로", "집사", "행정지원"].includes(user.roleGrade);
 }
 
 // 기본정보 수정: 등록한 사람 본인 또는 관리자 (작성자 미상 = 관리자만)
+// 예외: 행정지원은 데이터 입력 담당이므로 기존 성도도 수정 가능 (2026-10-07 사용자 승인,
+//       삭제와 소속·직분·공동의회 변경은 여전히 관리자만 — PATCH 라우트가 필드 단위 강제)
 export function canEditMember(user: AuthUser, registrantUserId: string | null): boolean {
   if (user.isAdmin) return true;
+  if (user.roleGrade === "행정지원") return true;
   if (!registrantUserId) return false;
   return registrantUserId === user.id && memberViewScope(user) === "full";
 }

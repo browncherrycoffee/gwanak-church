@@ -127,7 +127,7 @@ function sendCreate(member: Member) {
 export function canAddMemberClient(): boolean {
   if (!authInfo) return false;
   if (authInfo.isAdmin) return true;
-  return ["목사", "장로", "집사"].includes(authInfo.roleGrade ?? "");
+  return ["목사", "장로", "집사", "행정지원"].includes(authInfo.roleGrade ?? "");
 }
 
 // ─── 개별 교인 POST (~5KB, 500ms) ──────────────────────────────────────────

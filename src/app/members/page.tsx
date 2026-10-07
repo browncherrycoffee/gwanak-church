@@ -66,7 +66,7 @@ export default function MembersListPage() {
   const members = useSyncExternalStore(subscribe, getMembers, getMembers);
   const auth = useSyncExternalStore(subscribeAuth, getAuthInfo, () => null);
   useEffect(() => { loadAuthInfo(); }, []);
-  const canAddMember = !!auth && (auth.isAdmin === true || ["목사", "장로", "집사"].includes(auth.roleGrade ?? ""));
+  const canAddMember = !!auth && (auth.isAdmin === true || ["목사", "장로", "집사", "행정지원"].includes(auth.roleGrade ?? ""));
 
   // 제적 교인은 별도 페이지에서 관리 — 메인 목록에서 제외
   const activeMembers = useMemo(

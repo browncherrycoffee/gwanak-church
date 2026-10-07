@@ -22,7 +22,7 @@ export default function HomePage() {
     loadAuthInfo();
   }, []);
   const isAdmin = auth?.isAdmin === true;
-  const canAddMember = auth ? (isAdmin || ["목사", "장로", "집사"].includes(auth.roleGrade ?? "")) : false;
+  const canAddMember = auth ? (isAdmin || ["목사", "장로", "집사", "행정지원"].includes(auth.roleGrade ?? "")) : false;
 
   const handleLogout = async () => {
     await fetch("/api/auth", { method: "DELETE" });
