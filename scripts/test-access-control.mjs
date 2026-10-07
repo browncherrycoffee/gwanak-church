@@ -288,6 +288,16 @@ check("9", "전체", "성도 상세도 동일 API 경유 (별도 상세 API 없�
     eMember.nanumjo === "사랑조" && eMember.position === "집사" && staffDel.status === 403,
     `조장 ${addByJoLeader.status}, 행정 ${addByStaff.status}/${editLegacyByStaff.status}, 소속=${eMember.nanumjo}, 직분=${eMember.position}, 삭제 ${staffDel.status}`);
 
+  // 목사: 기존 성도 기본정보 수정 허용, 소속·직분 변경은 무시됨
+  const editByPastor = await req("pastor", "POST", `/api/members/${memberIds.H}`, {
+    member: { id: memberIds.H, name: "아성도", phone: "010-3333-4444", nanumjo: "희락조" },
+  });
+  const afterPastor = await req("admin", "GET", "/api/members");
+  const hMember = afterPastor.json.members.find((m) => m.id === memberIds.H);
+  check("목사수정", "목사", "기존 성도 기본정보 수정 200 + 소속 변경은 무시",
+    editByPastor.status === 200 && hMember.phone === "010-3333-4444" && hMember.nanumjo === "인내조",
+    `수정 ${editByPastor.status}, 소속=${hMember.nanumjo}(인내조 유지)`);
+
   // 삭제: 등록자 본인도 403, 관리자만
   const delByDeacon = await req("deacon", "DELETE", `/api/members/${memberIds.C}`);
   const delByPastor = await req("pastor", "DELETE", `/api/members/${memberIds.G}`);

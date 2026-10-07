@@ -80,6 +80,7 @@ export function canAddMember(user: AuthUser): boolean {
 export function canEditMember(user: AuthUser, registrantUserId: string | null): boolean {
   if (user.isAdmin) return true;
   if (user.roleGrade === "행정지원") return true;
+  if (user.roleGrade === "목사") return true; // 담임목사 — 기본정보 수정 허용 (2026-10-07 승인)
   if (!registrantUserId) return false;
   return registrantUserId === user.id && memberViewScope(user) === "full";
 }
