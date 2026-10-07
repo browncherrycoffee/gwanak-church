@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { headers, cookies } from "next/headers";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { appUsers, sessions } from "@/db/schema";
 import { checkLoginAllowed, recordLoginAttempt } from "@/lib/login-throttle";
@@ -94,6 +94,8 @@ export async function POST(request: Request) {
     userId: user.id,
     expiresAt,
   });
+  // 만료 세션 정리 (오래된 토큰 해시가 쌓이지 않도록)
+  db.delete(sessions).where(sql`expires_at < now() - interval '7 days'`).catch(() => {});
   await logAudit(user.id, "auth.login");
 
   const response = NextResponse.json({ ok: true });

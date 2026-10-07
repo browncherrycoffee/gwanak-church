@@ -103,6 +103,15 @@ async function checkDatabase(backupInfo) {
       report("데이터 정합성", ok, `DB ${row.cnt}명 vs 백업 ${backupInfo.memberCount}명`);
     }
 
+    // 로그인 공격 감시: 최근 24시간 실패 횟수 (50회 초과 = 무차별 대입 의심)
+    const [atk] = await sql`
+      SELECT COUNT(*)::int AS fails,
+             COUNT(DISTINCT ip)::int AS ips
+      FROM login_attempts WHERE success = false AND created_at > now() - interval '24 hours'
+    `;
+    report("로그인 공격 감시", atk.fails <= 50,
+      `24시간 내 실패 ${atk.fails}회 (IP ${atk.ips}개)${atk.fails > 50 ? " — 무차별 대입 의심!" : ""}`);
+
     // 권한 체계 테이블 점검
     const [acc] = await sql`
       SELECT
