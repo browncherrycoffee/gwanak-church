@@ -692,7 +692,7 @@ export default function PrayerListPage() {
           <>
             {/* 바로가기 — 상단 고정 */}
             <nav className="no-print sticky top-0 z-30 -mx-4 mb-5 border-b bg-background/95 px-4 py-2.5 backdrop-blur">
-              <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="flex flex-wrap gap-1.5 pb-0.5">
                 {currentGroups.map((group, gi) => {
                   const color = getGroupColor(gi, group.isUnassigned);
                   return (
