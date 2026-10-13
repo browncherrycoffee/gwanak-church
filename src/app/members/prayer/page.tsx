@@ -13,7 +13,7 @@ import {
 import type { AuthInfo } from "@/lib/member-store";
 import {
   getPrayers, subscribePrayers, loadPrayers,
-  getPrayersByMember, addPrayer, updatePrayer, deletePrayer,
+  addPrayer, updatePrayer, deletePrayer,
 } from "@/lib/prayer-store";
 import type { PrayerItem } from "@/lib/prayer-store";
 import { NANUMJO_NAMES } from "@/lib/nanumjo-config";
@@ -418,11 +418,9 @@ function MemberPrayerRow({
   showNum?: boolean;
 }) {
   const prayers = useSyncExternalStore(subscribePrayers, getPrayers, getPrayers);
-  const memberPrayers = getPrayersByMember(member.id).sort((a, b) =>
-    b.createdAt.localeCompare(a.createdAt)
-  );
-  // subscribePrayers 구독 갱신을 위해 prayers 길이를 사용
-  const prayerCount = prayers.filter((p) => p.memberId === member.id).length;
+  const memberPrayers = prayers
+    .filter((p) => p.memberId === member.id)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const latestPrayer = memberPrayers[0];
 
   return (
@@ -455,9 +453,10 @@ function MemberPrayerRow({
             className={`${getPrayerClass(sizeIdx)} mt-1.5 text-left leading-relaxed text-foreground/80 hover:text-primary transition-colors cursor-pointer whitespace-pre-wrap`}
           >
             {latestPrayer.content}
-            {prayerCount > 1 && (
-              <span className="ml-1.5 text-xs text-muted-foreground/50 font-normal">
-                +{prayerCount - 1}
+            {/* 표시 중인 최신 기도제목의 작성일 — 목사님 전교인 기도용 (개수 대신 날짜) */}
+            {/^\d{4}-\d{2}-\d{2}/.test(latestPrayer.createdAt) && (
+              <span className="ml-1.5 text-xs text-muted-foreground/60 font-normal whitespace-nowrap">
+                ({latestPrayer.createdAt.slice(2, 10).replaceAll("-", ".")})
               </span>
             )}
           </button>
