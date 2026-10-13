@@ -455,7 +455,7 @@ function MemberPrayerRow({
             {latestPrayer.content}
             {/* 표시 중인 최신 기도제목의 작성일 — 목사님 전교인 기도용 (개수 대신 날짜, 큰 글씨) */}
             {/^\d{4}-\d{2}-\d{2}/.test(latestPrayer.createdAt) && (
-              <span className={`${getNumClass(sizeIdx)} ml-2 font-semibold text-primary whitespace-nowrap`}>
+              <span className={`${getNumClass(sizeIdx)} ml-2 text-foreground/80 whitespace-nowrap`}>
                 ({latestPrayer.createdAt.slice(2, 10).replaceAll("-", ".")})
               </span>
             )}
