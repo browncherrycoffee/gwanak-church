@@ -77,6 +77,8 @@ const FAKE_USERS = [
   { key: "staffOwn",     name: "행정심방테스트", grade: "행정지원", isAdmin: false, assigns: [], pastoralScope: "own" },
   // 집사 + 기도제목 전체 (감사 기도제목 입력 담당 — 이지원 집사 유형)
   { key: "prayerAll",    name: "감사기도테스트", grade: "집사",    isAdmin: false, assigns: [["nanumjo","충성조"]], prayerScope: "all" },
+  // 등급 없음 + 조장 + 성도정보 full (제직 예정자 — 손효석 유형)
+  { key: "memberFull",   name: "제직예정테스트", grade: "없음",    isAdmin: false, assigns: [["nanumjo","화평조"]], memberScope: "full" },
 ];
 
 const codes = {};
@@ -85,10 +87,10 @@ for (const u of FAKE_USERS) {
   const code = generateCode();
   codes[u.key] = code;
   const [row] = await sql`
-    INSERT INTO app_users (display_name, title, role_grade, is_admin, status, code_hash, code_issued_at, member_id, pastoral_scope, prayer_scope)
+    INSERT INTO app_users (display_name, title, role_grade, is_admin, status, code_hash, code_issued_at, member_id, pastoral_scope, prayer_scope, member_scope)
     VALUES (${u.name}, ${u.grade === "없음" ? null : u.grade}, ${u.grade}, ${u.isAdmin},
             ${u.disabled ? "disabled" : "active"}, ${hashCode(code)}, now(),
-            ${u.memberKey ? memberIds[u.memberKey] : null}, ${u.pastoralScope ?? "all"}, ${u.prayerScope ?? "default"})
+            ${u.memberKey ? memberIds[u.memberKey] : null}, ${u.pastoralScope ?? "all"}, ${u.prayerScope ?? "default"}, ${u.memberScope ?? "default"})
     RETURNING id`;
   userIds[u.key] = row.id;
   for (const [t, n] of u.assigns) {

@@ -40,6 +40,7 @@ export async function GET() {
       isAdmin: appUsers.isAdmin,
       pastoralScope: appUsers.pastoralScope,
       prayerScope: appUsers.prayerScope,
+      memberScope: appUsers.memberScope,
       status: appUsers.status,
       codeIssuedAt: appUsers.codeIssuedAt,
       createdAt: appUsers.createdAt,
@@ -136,7 +137,7 @@ export async function PATCH(request: Request) {
   } catch {
     return NextResponse.json({ error: "잘못된 요청 형식입니다." }, { status: 400 });
   }
-  const { userId, action, roleGrade, title, isAdmin, memberId, assignments, pastoralScope, prayerScope } = (body && typeof body === "object" ? body : {}) as {
+  const { userId, action, roleGrade, title, isAdmin, memberId, assignments, pastoralScope, prayerScope, memberScope } = (body && typeof body === "object" ? body : {}) as {
     userId?: string;
     action?: "update" | "reissue-code" | "disable" | "enable";
     roleGrade?: string;
@@ -146,6 +147,7 @@ export async function PATCH(request: Request) {
     assignments?: { unitType: string; unitName: string }[];
     pastoralScope?: "all" | "units" | "own";
     prayerScope?: "default" | "all";
+    memberScope?: "default" | "full";
   };
   if (!userId) return NextResponse.json({ error: "대상 사용자가 필요합니다." }, { status: 400 });
 
@@ -184,6 +186,7 @@ export async function PATCH(request: Request) {
   if (memberId !== undefined) set.memberId = memberId || null;
   if (pastoralScope === "all" || pastoralScope === "units" || pastoralScope === "own") set.pastoralScope = pastoralScope;
   if (prayerScope === "default" || prayerScope === "all") set.prayerScope = prayerScope;
+  if (memberScope === "default" || memberScope === "full") set.memberScope = memberScope;
   await db.update(appUsers).set(set).where(eq(appUsers.id, userId));
 
   if (Array.isArray(assignments)) {

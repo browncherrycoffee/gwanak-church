@@ -64,6 +64,7 @@ export type MemberViewScope = "full" | "name-only" | "none";
 // 관리자·목사·장로·집사·행정지원: 전체. 직분 없는 조장·부서장: 맡은 조·부서 성도의 이름·소속만.
 export function memberViewScope(user: AuthUser): MemberViewScope {
   if (user.isAdmin) return "full";
+  if (user.memberScope === "full") return "full"; // 제직 예정자 등 — 성도 정보만 집사 수준 (2026-10-13)
   if (["목사", "장로", "집사", "행정지원"].includes(user.roleGrade)) return "full";
   if (user.assignments.length > 0) return "name-only";
   return "none";
@@ -71,6 +72,7 @@ export function memberViewScope(user: AuthUser): MemberViewScope {
 
 export function canAddMember(user: AuthUser): boolean {
   // 행정지원: 담임목사 행정 보좌 역할로 성도 등록·수정 허용 (2026-10-07 사용자 승인)
+  if (user.memberScope === "full") return true; // 성도 정보 집사 수준 (2026-10-13)
   return user.isAdmin || ["목사", "장로", "집사", "행정지원"].includes(user.roleGrade);
 }
 

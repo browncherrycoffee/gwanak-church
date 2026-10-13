@@ -42,7 +42,7 @@ async function req(userKey, method, path, body) {
 }
 
 // ─── 0. 로그인 준비 (시도 제한 오염 방지를 위해 성공 로그인 먼저 전부 수행) ───
-const loginKeys = ["admin","pastor","elder","elderLeader","deacon","deaconLeader","staff","joLeader","deptLeader","dualLeader","nobody","scopedDeacon","staffOwn","prayerAll"];
+const loginKeys = ["admin","pastor","elder","elderLeader","deacon","deaconLeader","staff","joLeader","deptLeader","dualLeader","nobody","scopedDeacon","staffOwn","prayerAll","memberFull"];
 for (const k of loginKeys) {
   const st = await login(k);
   if (st !== 200) { console.error(`로그인 실패: ${k} (${st}) — 중단`); process.exit(1); }
@@ -245,6 +245,20 @@ check("9", "전체", "성도 상세도 동일 API 경유 (별도 상세 API 없�
   check("기도전체범위", "감사기도담당", "전체 열람 + 아무 성도에게나 추가, 남의 것 수정·본인 삭제는 거부",
     mine.length === adminPrayers.length && addOut.status === 200 && editOther.status === 403 && delOwn.status === 403,
     `열람 ${mine.length}/${adminPrayers.length}, 추가 ${addOut.status}, 남수정 ${editOther.status}, 삭제 ${delOwn.status}`);
+}
+
+// ─── 성도정보 full(등급 없음+조장, 제직 예정자 — 손효석 유형) ──────────────────
+{
+  const mem = await req("memberFull", "GET", "/api/members");
+  const adminMem = await req("admin", "GET", "/api/members");
+  const first = mem.json?.members?.[0] ?? {};
+  // 전체 성도 + 상세 필드까지 (집사 수준). 심방 403, 기도는 담당 조(화평조=I 아님… 화평조 소속 없음→0건일 수 있음)
+  const past = await req("memberFull", "GET", "/api/pastoral");
+  const addMem = await req("memberFull", "POST", "/api/members", { member: { name: "제직등록테스트" } });
+  check("성도정보full", "제직예정자", "성도 전체·상세 열람 + 등록 가능(집사 수준), 심방은 차단",
+    mem.json?.scope === "full" && mem.json?.members?.length === adminMem.json?.members?.length &&
+    first.birthDate !== undefined && past.status === 403 && addMem.status === 200,
+    `scope=${mem.json?.scope}, ${mem.json?.members?.length}/${adminMem.json?.members?.length}명, 심방 ${past.status}, 등록 ${addMem.status}`);
 }
 
 // ─── 13. 목사: 열람은 전체, 남의 기록 수정·모든 삭제 거부 ─────────────────────

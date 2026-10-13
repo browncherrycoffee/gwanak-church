@@ -20,6 +20,7 @@ export interface AuthUser {
   isAdmin: boolean;
   pastoralScope: "all" | "units" | "own";
   prayerScope: "default" | "all";
+  memberScope: "default" | "full";
   sessionId: string;
   adminVerified: boolean; // 관리자 재확인(코드 재입력)이 유효한가
   assignments: { unitType: "nanumjo" | "department"; unitName: string }[];
@@ -46,6 +47,7 @@ export async function getAuthUser(): Promise<AuthUser | null> {
         isAdmin: appUsers.isAdmin,
         pastoralScope: appUsers.pastoralScope,
         prayerScope: appUsers.prayerScope,
+        memberScope: appUsers.memberScope,
         status: appUsers.status,
       })
       .from(sessions)
@@ -72,6 +74,7 @@ export async function getAuthUser(): Promise<AuthUser | null> {
       isAdmin: row.isAdmin,
       pastoralScope: (row.pastoralScope as "all" | "units" | "own") ?? "all",
       prayerScope: (row.prayerScope as "default" | "all") ?? "default",
+      memberScope: (row.memberScope as "default" | "full") ?? "default",
       sessionId: row.sessionId,
       adminVerified:
         !!row.adminVerifiedUntil && new Date(row.adminVerifiedUntil).getTime() > Date.now(),

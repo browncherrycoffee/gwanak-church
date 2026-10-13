@@ -30,6 +30,8 @@ export const appUsers = pgTable(
     pastoralScope: varchar("pastoral_scope", { length: 10 }).notNull().default("all"),
     // 기도제목 범위: default(등급·담당 규칙) | all(전체 열람+추가 — 감사 기도제목 입력 담당자용)
     prayerScope: varchar("prayer_scope", { length: 10 }).notNull().default("default"),
+    // 성도 정보 범위: default(등급 규칙) | full(직분 없어도 집사와 동일 — 제직 예정자용)
+    memberScope: varchar("member_scope", { length: 10 }).notNull().default("default"),
     // 접속 코드는 원문 저장 금지 — SHA-256(pepper 포함) 해시만
     codeHash: varchar("code_hash", { length: 64 }),
     codeIssuedAt: timestamp("code_issued_at", { withTimezone: true }),
