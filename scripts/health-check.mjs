@@ -16,14 +16,33 @@ function report(name, ok, detail) {
 }
 
 // 1. 사이트 가동 확인 (로그인 리다이렉트 = 정상)
+// 여러 번 호출해 엣지 노드별 간헐 장애를 포착하고, 404 본문의
+// DEPLOYMENT_NOT_FOUND(배포 누락) 를 명시적으로 탐지한다.
 async function checkSite() {
-  try {
-    const res = await fetch(SITE_URL, { redirect: "manual" });
-    const ok = res.status === 307 || res.status === 200 || res.status === 308;
-    report("사이트 가동", ok, `HTTP ${res.status}`);
-  } catch (e) {
-    report("사이트 가동", false, e.message);
+  const problems = [];
+  let lastStatus = "?";
+  for (let i = 0; i < 4; i++) {
+    try {
+      const res = await fetch(SITE_URL, { redirect: "manual", cache: "no-store" });
+      lastStatus = res.status;
+      const okStatus = res.status === 307 || res.status === 200 || res.status === 308;
+      let body = "";
+      if (!okStatus) body = await res.text().catch(() => "");
+      const deployMissing = /DEPLOYMENT_NOT_FOUND|This page doesn.?t exist/i.test(body);
+      if (!okStatus || deployMissing) {
+        problems.push(
+          `HTTP ${res.status}${deployMissing ? " DEPLOYMENT_NOT_FOUND(배포 누락)" : ""} @ ${res.headers.get("x-vercel-id") || "?"}`
+        );
+      }
+    } catch (e) {
+      problems.push(`요청 실패: ${e.message}`);
+    }
   }
+  report(
+    "사이트 가동",
+    problems.length === 0,
+    problems.length === 0 ? `HTTP ${lastStatus} (4/4 정상)` : problems.join(" | ")
+  );
 }
 
 // 2. 백업 최신성: 최근 26시간 내 일일 백업 존재
