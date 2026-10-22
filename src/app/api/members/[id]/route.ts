@@ -99,6 +99,15 @@ async function handleUpdate(request: Request, params: Promise<{ id: string }>) {
           member.departments.map((d) => ({ memberId: id, departmentName: String(d) })),
         );
       }
+      // 구 단일 컬럼도 동기 갱신 — 백업·CSV·구 코드 경로가 낡은 값을 보지 않도록.
+      // (화면 표시는 member-serialize가 member_departments에서 파생하므로 이건 2차 방어선)
+      await db
+        .update(members)
+        .set({
+          department:
+            member.departments.length > 0 ? member.departments.map(String).join(", ") : null,
+        })
+        .where(eq(members.id, id));
     }
 
     await logAudit(user.id, "member.update", "member", id);

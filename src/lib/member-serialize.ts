@@ -19,7 +19,9 @@ export function rowToMember(
     birthDate: row.birthDate ?? null,
     gender: row.gender ?? null,
     position: row.position ?? null,
-    department: row.department ?? null,
+    // 단일 department 표시값도 member_departments(단일 소스)에서 파생 —
+    // 구 컬럼(row.department)이 낡아도 검색·상세·통계 화면이 틀리지 않게 한다.
+    department: departments.length > 0 ? departments.join(", ") : (row.department ?? null),
     departments,
     district: row.district ?? null,
     nanumjo: row.nanumjo ?? null,

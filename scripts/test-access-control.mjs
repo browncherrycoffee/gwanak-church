@@ -354,6 +354,14 @@ check("9", "전체", "성도 상세도 동일 API 경유 (별도 상세 API 없�
     hasMember && deptRoundTrip,
     `member=${!!hasMember}, departments=${hasMember ? JSON.stringify(resp.json.member.departments) : "없음"}`);
 
+  // (1b) 검색·상세 화면이 쓰는 단일 표시값(department)도 즉시 새 부서를 반영해야 한다.
+  // (구 컬럼이 낡아도 member_departments에서 파생되므로 수정 전 부서가 보이면 안 됨)
+  const listAfterDept = await req("admin", "GET", "/api/members");
+  const aDisplayed = listAfterDept.json.members.find((m) => m.id === memberIds.A);
+  check("허위저장방지-1b", "관리자", "부서 변경 직후 목록의 표시용 department도 새 값",
+    aDisplayed?.department === "청년부(대학 SFC)",
+    `표시값=${aDisplayed?.department}`);
+
   // (2) 행정지원이 공동의회회원을 바꾸려 해도 무시되고, 응답은 '실제 바뀌지 않은 값'을 반영
   const before = await req("admin", "GET", "/api/members");
   const aBefore = before.json.members.find((m) => m.id === memberIds.A);

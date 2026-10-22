@@ -166,6 +166,21 @@ async function checkDatabase(backupInfo) {
       nameOk ? "DB 값이 모두 공식 목록과 일치"
         : `목록 밖 값 발견 — 부서[${deptBad.join(", ") || "없음"}] 나눔조[${njBad.join(", ") || "없음"}] (폼·필터와 불일치 → 즉시 교정 필요)`);
 
+    // 구 단일 컬럼(members.department) ↔ 단일 소스(member_departments) 동기화 감시.
+    // 어긋나면 구 컬럼을 읽는 경로(백업·CSV 등)가 수정 전 부서를 보여주는 버그가 재발한다.
+    // 교정: node scripts/sync-legacy-department.mjs
+    const [legacyDrift] = await sql`
+      WITH agg AS (
+        SELECT member_id, string_agg(department_name, ', ' ORDER BY department_name) AS depts
+        FROM member_departments GROUP BY member_id
+      )
+      SELECT COUNT(*) AS n FROM members m LEFT JOIN agg a ON a.member_id = m.id
+      WHERE m.department IS DISTINCT FROM a.depts`;
+    const driftOk = Number(legacyDrift.n) === 0;
+    report("부서 구컬럼 동기화", driftOk,
+      driftOk ? "members.department가 member_departments와 전원 일치"
+        : `${legacyDrift.n}명 불일치 — 수정 전 부서가 표시될 수 있음 (sync-legacy-department.mjs 실행 필요)`);
+
     await sql.end();
   } catch (e) {
     report("DB 접속", false, e.message);

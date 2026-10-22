@@ -148,7 +148,11 @@ export async function POST(request: Request) {
         birthDate: member.birthDate ?? null,
         gender: member.gender ?? null,
         position: canOrg ? (member.position ?? "성도") : "성도",
-        department: null, // 단일 부서 필드는 더 이상 쓰지 않음 (member_departments 사용)
+        // 단일 소스는 member_departments — 구 컬럼은 동기 복사본으로만 유지
+        department:
+          canOrg && Array.isArray(member.departments) && member.departments.length > 0
+            ? member.departments.map(String).join(", ")
+            : null,
         district: member.district ?? null,
         nanumjo: canOrg ? (member.nanumjo ?? null) : null,
         familyMembers: Array.isArray(member.familyMembers) ? member.familyMembers : [],
