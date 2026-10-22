@@ -30,7 +30,9 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
     birthDate: initialData?.birthDate ?? "",
     gender: initialData?.gender ?? "",
     position: initialData?.position ?? "성도",
-    department: initialData?.department ?? "",
+    // 소속은 member_departments(배열)가 실제 저장소 — 레거시 단일 컬럼이 아니라
+    // 배열의 첫 값을 우선 읽어야 화면·DB가 일치한다 (불일치 시 저장 안 되는 버그 방지)
+    department: initialData?.departments?.[0] ?? initialData?.department ?? "",
     district: initialData?.district ?? "",
     nanumjo: initialData?.nanumjo ?? "",
     familyMembers: initialData?.familyMembers ?? [],
@@ -98,6 +100,8 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
     if (!form.name.trim()) return;
     onSubmit({
       ...form,
+      // 서버는 departments(배열)만 저장하므로 단일 선택값을 배열로 변환해 보낸다
+      departments: form.department ? [form.department] : [],
       familyMembers: form.familyMembers.map((n) => n.trim()).filter(Boolean),
     });
   };

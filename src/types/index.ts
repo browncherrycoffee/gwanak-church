@@ -73,7 +73,8 @@ export interface MemberFormData {
   birthDate: string;
   gender: string;
   position: string;
-  department: string;
+  department: string; // 폼 UI용 단일 선택값 (제출 시 departments 배열로 변환)
+  departments?: string[]; // 서버가 실제로 저장하는 다중 부서 소속 (member_departments)
   district: string;
   nanumjo: string;
   familyMembers: string[];
