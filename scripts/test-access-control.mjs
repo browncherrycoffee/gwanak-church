@@ -332,6 +332,50 @@ check("9", "전체", "성도 상세도 동일 API 경유 (별도 상세 API 없�
     `${editOther.status}/${delByDeacon.status}/${delByPastor.status}`);
 }
 
+// ─── 허위저장방지(anti-false-save): 저장 응답이 "실제 저장값"을 되돌려줘야 한다 ──
+// 증상: "저장됨"으로 뜨는데 실제로는 안 바뀌고 되돌아감(split-brain).
+// 서버가 권한상 무시한 필드까지 요청값으로 응답하면 클라이언트가 허위로 반영→폴링 때 되돌림.
+// 방지: PATCH는 항상 DB 저장값(member)을 반환하고, 클라이언트는 그걸로 화면을 교정한다.
+{
+  // 원래 부서 소속을 스냅샷 (테스트 후 원복 — 뒤 테스트가 A의 부서에 의존)
+  const snap = await req("admin", "GET", "/api/members");
+  const origDepts = snap.json.members.find((m) => m.id === memberIds.A)?.departments ?? [];
+
+  // (1) 저장 응답에 authoritative member 객체가 반드시 포함
+  const resp = await req("admin", "POST", `/api/members/${memberIds.A}`, {
+    member: { id: memberIds.A, name: "가성도", departments: ["청년부(대학 SFC)"] },
+  });
+  const hasMember = resp.status === 200 && resp.json && typeof resp.json.member === "object" && resp.json.member;
+  const deptRoundTrip = hasMember &&
+    Array.isArray(resp.json.member.departments) &&
+    resp.json.member.departments.length === 1 &&
+    resp.json.member.departments[0] === "청년부(대학 SFC)";
+  check("허위저장방지-1", "관리자", "PATCH 응답에 저장된 member 포함 + 부서 배열 왕복 일치",
+    hasMember && deptRoundTrip,
+    `member=${!!hasMember}, departments=${hasMember ? JSON.stringify(resp.json.member.departments) : "없음"}`);
+
+  // (2) 행정지원이 공동의회회원을 바꾸려 해도 무시되고, 응답은 '실제 바뀌지 않은 값'을 반영
+  const before = await req("admin", "GET", "/api/members");
+  const aBefore = before.json.members.find((m) => m.id === memberIds.A);
+  const realCongregation = aBefore.congregationMember ?? false;
+  const staffTry = await req("staff", "POST", `/api/members/${memberIds.A}`, {
+    member: { id: memberIds.A, name: "가성도", congregationMember: !realCongregation },
+  });
+  const respReflectsTruth = staffTry.status === 200 && staffTry.json.member &&
+    staffTry.json.member.congregationMember === realCongregation;
+  const after = await req("admin", "GET", "/api/members");
+  const aAfter = after.json.members.find((m) => m.id === memberIds.A);
+  const dbUnchanged = (aAfter.congregationMember ?? false) === realCongregation;
+  check("허위저장방지-2", "행정지원", "무시된 필드(공동의회회원)는 응답·DB 모두 실제값 유지(허위 저장 금지)",
+    respReflectsTruth && dbUnchanged,
+    `응답=${staffTry.json.member?.congregationMember}, DB=${aAfter.congregationMember}, 기대=${realCongregation}`);
+
+  // 되돌림 (부서 변경 원복 — 뒤 테스트 영향 방지)
+  await req("admin", "POST", `/api/members/${memberIds.A}`, {
+    member: { id: memberIds.A, name: "가성도", departments: origDepts },
+  });
+}
+
 // ─── 18. 기존 정상 기능: 성도 조회·심방 작성·기도 작성 ────────────────────────
 {
   const addPrayerOk = await req("pastor", "POST", "/api/prayers", { memberId: memberIds.G, content: "목사가 미지정 성도에게 추가" });

@@ -10,6 +10,7 @@ import { FloppyDisk, ArrowLeft, Camera, Trash, Plus, X } from "@phosphor-icons/r
 import { POSITIONS, DEPARTMENTS, BAPTISM_TYPES, GENDERS, MEMBER_STATUSES } from "@/lib/constants";
 import { NANUMJO_NAMES } from "@/lib/nanumjo-config";
 import { formatPhoneNumber, resizeImage } from "@/lib/utils";
+import { canEditOrgFieldsClient, canEditCongregationClient } from "@/lib/member-store";
 import { FamilyNameInput } from "@/components/members/family-name-input";
 import type { Member, MemberFormData } from "@/types";
 
@@ -22,6 +23,11 @@ interface MemberFormProps {
 export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // 서버 권한과 동일하게 — 못 바꾸는 칸은 잠가 "저장했는데 안 바뀜"을 사전 차단
+  const canOrg = canEditOrgFieldsClient();
+  const canCongregation = canEditCongregationClient();
+  const lockedCls = "flex h-10 w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-muted-foreground cursor-not-allowed";
+  const normalCls = "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm";
   const [form, setForm] = useState<MemberFormData>({
     name: initialData?.name ?? "",
     phone: initialData?.phone ?? "",
@@ -249,9 +255,10 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
                 <label htmlFor="member-position" className="text-sm font-medium mb-1.5 block">직분</label>
                 <select
                   id="member-position"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className={canOrg ? normalCls : lockedCls}
                   value={form.position}
                   onChange={(e) => handleChange("position", e.target.value)}
+                  disabled={!canOrg}
                 >
                   <option value="">선택</option>
                   {POSITIONS.map((p) => (
@@ -263,9 +270,10 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
                 <label htmlFor="member-department" className="text-sm font-medium mb-1.5 block">소속</label>
                 <select
                   id="member-department"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className={canOrg ? normalCls : lockedCls}
                   value={form.department}
                   onChange={(e) => handleChange("department", e.target.value)}
+                  disabled={!canOrg}
                 >
                   <option value="">선택</option>
                   {DEPARTMENTS.map((d) => (
@@ -286,9 +294,10 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
                 <label htmlFor="member-nanumjo" className="text-sm font-medium mb-1.5 block">나눔조</label>
                 <select
                   id="member-nanumjo"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className={canOrg ? normalCls : lockedCls}
                   value={form.nanumjo}
                   onChange={(e) => handleChange("nanumjo", e.target.value)}
+                  disabled={!canOrg}
                 >
                   <option value="">미배정</option>
                   {NANUMJO_NAMES.map((n) => (
@@ -328,14 +337,17 @@ export function MemberForm({ initialData, onSubmit, submitLabel }: MemberFormPro
                 </select>
               </div>
               <div>
-                <label htmlFor="member-congregationMember" className="text-sm font-medium mb-1.5 block">공동의회회원</label>
+                <label htmlFor="member-congregationMember" className="text-sm font-medium mb-1.5 block">
+                  공동의회회원{!canCongregation && <span className="ml-1 text-xs text-muted-foreground">(관리자만 변경)</span>}
+                </label>
                 <select
                   id="member-congregationMember"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className={canCongregation ? normalCls : lockedCls}
                   value={form.congregationMember ? "yes" : "no"}
                   onChange={(e) =>
                     setForm((prev) => ({ ...prev, congregationMember: e.target.value === "yes" }))
                   }
+                  disabled={!canCongregation}
                 >
                   <option value="no">아니오</option>
                   <option value="yes">예</option>

@@ -6,6 +6,7 @@ import type { AuthUser } from "@/lib/server-auth";
 import { getAuthUser } from "@/lib/server-auth";
 import { memberViewScope, canAddMember, canEditMemberOrgFields } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
+import { rowToMember } from "@/lib/member-serialize";
 import type { Member, MemberNameOnly } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -16,44 +17,7 @@ function canEditAnyMember(user: AuthUser): boolean {
 }
 
 // 기도제목·심방기록은 이 API로 내려가지 않는다 (별도 권한 API: /api/prayers, /api/pastoral)
-function rowToMember(
-  row: typeof members.$inferSelect,
-  departments: string[],
-  canEdit: boolean,
-): Member {
-  return {
-    canEdit,
-    id: row.id,
-    name: row.name,
-    phone: row.phone ?? null,
-    address: row.address ?? null,
-    detailAddress: row.detailAddress ?? null,
-    birthDate: row.birthDate ?? null,
-    gender: row.gender ?? null,
-    position: row.position ?? null,
-    department: row.department ?? null,
-    departments,
-    district: row.district ?? null,
-    nanumjo: row.nanumjo ?? null,
-    familyMembers: Array.isArray(row.familyMembers) ? row.familyMembers : [],
-    familyHead: row.familyHead ?? null,
-    relationship: row.relationship ?? null,
-    baptismDate: row.baptismDate ?? null,
-    baptismType: row.baptismType ?? null,
-    baptismChurch: row.baptismChurch ?? null,
-    registrationDate: row.registrationDate ?? null,
-    memberJoinDate: row.memberJoinDate ?? null,
-    carNumber: row.carNumber ?? null,
-    notes: row.notes ?? null,
-    photoUrl: row.photoUrl ?? null,
-    memberStatus: row.memberStatus,
-    congregationMember: row.congregationMember ?? false,
-    prayerRequests: [],
-    pastoralVisits: [],
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
-  };
-}
+// rowToMember는 저장 API와 공용 (src/lib/member-serialize.ts) — 매핑 중복 방지
 
 // 직분 없는 조장·부서장용 축소 정보 — 이름·소속·연락처·주소·세례 정보까지만.
 // 생년월일·가족·사진·비고 등은 서버가 아예 보내지 않는다.

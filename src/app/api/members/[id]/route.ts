@@ -11,6 +11,7 @@ import {
   memberViewScope,
 } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
+import { rowToMember } from "@/lib/member-serialize";
 import type { Member } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -101,7 +102,19 @@ async function handleUpdate(request: Request, params: Promise<{ id: string }>) {
     }
 
     await logAudit(user.id, "member.update", "member", id);
-    return NextResponse.json({ ok: true });
+
+    // 저장된 실제 값을 그대로 돌려준다 — 클라이언트가 이걸로 화면을 맞추면
+    // 서버가 권한상 무시한 필드(예: 비관리자의 공동의회회원)가 허위로 "저장됨"
+    // 표시되는 일 없이 즉시 실제값으로 교정된다 (split-brain 방지).
+    const [savedRow] = await db.select().from(members).where(eq(members.id, id)).limit(1);
+    const savedDepts = await db
+      .select({ name: memberDepartments.departmentName })
+      .from(memberDepartments)
+      .where(eq(memberDepartments.memberId, id));
+    const saved = savedRow
+      ? rowToMember(savedRow, savedDepts.map((d) => d.name), true)
+      : null;
+    return NextResponse.json({ ok: true, member: saved });
   } catch (err) {
     console.error("[PATCH /api/members/[id]]", err);
     return NextResponse.json({ error: "저장 실패" }, { status: 500 });

@@ -130,6 +130,18 @@ export function canAddMemberClient(): boolean {
   return ["목사", "장로", "집사", "행정지원"].includes(authInfo.roleGrade ?? "");
 }
 
+// 화면용: 소속(나눔조·부서)·직분 수정 권한 (서버 canEditMemberOrgFields와 동일 규칙)
+// 권한 없는 사용자에게 해당 입력칸을 잠가 "저장했는데 안 바뀜"을 사전 차단한다.
+export function canEditOrgFieldsClient(): boolean {
+  if (!authInfo) return false;
+  return authInfo.isAdmin || authInfo.roleGrade === "행정지원" || authInfo.roleGrade === "목사";
+}
+
+// 화면용: 공동의회회원 수정 권한 (서버와 동일하게 관리자만)
+export function canEditCongregationClient(): boolean {
+  return authInfo?.isAdmin ?? false;
+}
+
 // ─── 개별 교인 POST (~5KB, 500ms) ──────────────────────────────────────────
 function schedulePatch(memberId: string) {
   if (typeof window === "undefined") return;
@@ -163,6 +175,36 @@ function schedulePatch(memberId: string) {
       if (res.ok) {
         notifySyncError(false);
         retryQueue.delete(memberId);
+        // 서버가 돌려준 실제 저장값으로 화면을 교정한다 — 서버가 권한상 무시한
+        // 필드가 "저장됨"처럼 남아있다가 뒤늦게 되돌아가는 현상을 없앤다.
+        // 단, 이 응답 이후 새 수정 타이머가 잡혀 있으면(최신 편집 보존) 교정을 건너뛴다.
+        // (pendingPatches는 이 패치 자체 때문에 아직 true이므로 판별에 쓰지 않는다)
+        if (!patchTimers.has(memberId)) {
+          try {
+            const data = await res.json() as { member?: Member } | null;
+            const serverMember = data?.member;
+            if (serverMember) {
+              const idx = members.findIndex((m) => m.id === memberId);
+              if (idx !== -1) {
+                const local = members[idx]!;
+                // 서버가 내려주지 않는 화면 전용 필드(기도·심방)는 로컬 값 유지
+                const reconciled: Member = {
+                  ...serverMember,
+                  prayerRequests: local.prayerRequests ?? [],
+                  pastoralVisits: local.pastoralVisits ?? [],
+                };
+                const changed = JSON.stringify(local) !== JSON.stringify(reconciled);
+                if (changed) {
+                  members = [...members.slice(0, idx), reconciled, ...members.slice(idx + 1)];
+                  for (const listener of listeners) listener();
+                  for (const listener of serverUpdateListeners) listener();
+                }
+              }
+            }
+          } catch {
+            // 응답 파싱 실패 시 기존 동작 유지 (화면 교정만 생략)
+          }
+        }
       } else if (res.status === 401) {
         notifySyncError("auth");
       } else if (res.status === 403) {
