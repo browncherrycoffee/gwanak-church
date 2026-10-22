@@ -147,6 +147,25 @@ async function checkDatabase(backupInfo) {
       const ok = acc.prayers >= backupInfo.accessPrayers * 0.9;
       report("기도제목 정합성", ok, `DB ${acc.prayers}건 vs 백업 ${backupInfo.accessPrayers}건`);
     }
+
+    // 부서명·나눔조명 정합성 — src/lib/constants.ts·nanumjo-config.ts와 반드시 일치해야 함.
+    // DB에 목록 밖 값이 있으면 폼 드롭다운/필터와 어긋나 "저장해도 안 바뀜"·"0개로 안 보임"
+    // 류 버그를 유발한다. 목록이 바뀌면 아래 배열도 함께 갱신할 것.
+    const DEPARTMENTS = ["제1남전도회","제1여전도회","제2여전도회","제3남전도회","제3여전도회","제4남녀전도회","청년부(직장인)","청년부(대학 SFC)","중고등부 SFC","초등부","영유치부"];
+    const NANUMJO_NAMES = ["사랑조","희락조","화평조","인내조","자비조","양선조","충성조","온유조","중고등부","초등부"];
+    const badDepts = await sql`
+      SELECT DISTINCT department_name AS v FROM member_departments
+      WHERE department_name <> ALL(${sql.array(DEPARTMENTS)})`;
+    const badNj = await sql`
+      SELECT DISTINCT nanumjo AS v FROM members
+      WHERE nanumjo IS NOT NULL AND nanumjo <> ALL(${sql.array(NANUMJO_NAMES)})`;
+    const deptBad = badDepts.map((r) => r.v);
+    const njBad = badNj.map((r) => r.v);
+    const nameOk = deptBad.length === 0 && njBad.length === 0;
+    report("부서·나눔조명 정합성", nameOk,
+      nameOk ? "DB 값이 모두 공식 목록과 일치"
+        : `목록 밖 값 발견 — 부서[${deptBad.join(", ") || "없음"}] 나눔조[${njBad.join(", ") || "없음"}] (폼·필터와 불일치 → 즉시 교정 필요)`);
+
     await sql.end();
   } catch (e) {
     report("DB 접속", false, e.message);
