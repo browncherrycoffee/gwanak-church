@@ -55,8 +55,13 @@ export default function DepartmentsPage() {
       });
 
     const result: { name: string; members: typeof members }[] = [];
+    // 공식 부서는 소속 인원이 0명이어도 항상 표시 (편성표를 그대로 반영)
+    for (const dept of DEPARTMENTS) {
+      result.push({ name: dept, members: sortByPosition(map.get(dept) ?? []) });
+    }
+    // 공식 목록 밖의 값(예: 구 명칭 "청년부")은 인원이 있을 때만 표시
     for (const [name, list] of map) {
-      if (list.length > 0) {
+      if (!DEPARTMENTS.includes(name as (typeof DEPARTMENTS)[number]) && list.length > 0) {
         result.push({ name, members: sortByPosition(list) });
       }
     }
